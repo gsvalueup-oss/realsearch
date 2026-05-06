@@ -76,7 +76,11 @@ function SearchContent() {
       setError(null)
 
       try {
-        const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+        const baseURL = typeof window !== 'undefined'
+          ? (window.location.hostname === 'localhost'
+            ? 'http://localhost:8000'
+            : 'https://realsearch-production-882c.up.railway.app')
+          : 'https://realsearch-production-882c.up.railway.app'
         const params = new URLSearchParams({
           q,
           type,
