@@ -10,8 +10,8 @@ import uuid
 
 from app.db import models
 
-# DB 테이블 자동 생성
-models.Base.metadata.create_all(bind=engine)
+# DB 테이블 자동 생성 (배포 환경에서는 건너뜀)
+# models.Base.metadata.create_all(bind=engine)
 
 settings = get_settings()
 
