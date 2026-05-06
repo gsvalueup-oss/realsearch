@@ -1,0 +1,238 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  background: #f5f7fa;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #f5f7fa;
+  min-height: 100vh;
+  color: #1a202c;
+  font-family: inherit;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
+    monospace;
+}
+
+/* 깔끔한 카드 스타일 */
+.card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid #e8eef5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.card:hover {
+  border-color: #d0dce6;
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.12);
+  transform: translateY(-2px);
+}
+
+/* 검색창 스타일 */
+.search-input {
+  width: 100%;
+  padding: 14px 18px;
+  border: 1.5px solid #e8eef5;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #1a202c;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.search-input::placeholder {
+  color: #8a95a8;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1), 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+/* 타이포그래피 */
+.text-section-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a202c;
+  letter-spacing: -0.5px;
+}
+
+.text-body {
+  font-size: 14px;
+  font-weight: 400;
+  color: #4a5568;
+}
+
+.text-body-secondary {
+  font-size: 14px;
+  font-weight: 400;
+  color: #8a95a8;
+}
+
+.text-highlight {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+/* 버튼 스타일 */
+.btn {
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-size: 14px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-height: 44px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #3b82f6;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #2563eb;
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  background: #f0f4f8;
+  color: #1a202c;
+  border: 1.5px solid #e8eef5;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #e8eef5;
+  border-color: #3b82f6;
+  color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.btn-small {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+/* 배지 스타일 */
+.badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-success {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.badge-warning {
+  background: #fffbeb;
+  color: #d97706;
+  border: 1px solid #fcd34d;
+}
+
+.badge-danger {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.badge-info {
+  background: #eff6ff;
+  color: #0284c7;
+  border: 1px solid #bae6fd;
+}
+
+/* 아이콘 배경 */
+.icon-bg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+
+.icon-bg-primary {
+  background-color: #EFF6FF;
+  color: #3182F6;
+}
+
+.icon-bg-secondary {
+  background-color: #F2F4F6;
+  color: #8B95A1;
+}
+
+/* 표 스타일 */
+.table-responsive {
+  @apply w-full overflow-x-auto;
+}
+
+.table-responsive table {
+  @apply w-full border-collapse;
+}
+
+.table-responsive th {
+  background: #f9fafc;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  color: #4a5568;
+  border-bottom: 1.5px solid #e8eef5;
+}
+
+.table-responsive td {
+  padding: 12px 16px;
+  border: none;
+  border-bottom: 1px solid #e8eef5;
+  color: #1a202c;
+  font-size: 14px;
+}
+
+.table-responsive tbody tr:hover {
+  background-color: #f9fafc;
+}
+
+/* 로딩 상태 */
+.loading {
+  @apply animate-pulse;
+}
+
+.spinner {
+  @apply inline-block animate-spin;
+}
