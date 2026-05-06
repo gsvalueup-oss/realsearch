@@ -16,21 +16,29 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let isMounted = true
     const fetchPopular = async () => {
       try {
         const [officesRes, agentsRes] = await Promise.all([
           api.get<OfficeSummary[]>('/api/popular/offices', { params: { limit: 6 } }),
           api.get<AgentSummary[]>('/api/popular/agents', { params: { limit: 6 } }),
         ])
-        setPopularOffices(officesRes.data || [])
-        setPopularAgents(agentsRes.data || [])
+        if (isMounted) {
+          setPopularOffices(officesRes.data || [])
+          setPopularAgents(agentsRes.data || [])
+          setLoading(false)
+        }
       } catch (error) {
         console.error(error)
-      } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
     fetchPopular()
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   const handleSearch = (e: React.FormEvent) => {
