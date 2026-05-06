@@ -9,11 +9,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application
 COPY . .
 
-# Make start script executable
-RUN chmod +x start.sh
-
 # Expose port
 EXPOSE 8000
 
-# Run application
-CMD ["bash", "start.sh"]
+# Run application with shell to evaluate environment variables
+CMD sh -c "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
