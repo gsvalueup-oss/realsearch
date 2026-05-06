@@ -32,11 +32,6 @@ const SIGUNGU_MAP: Record<string, string[]> = {
   '제주특별자치도': ['서귀포시', '제주시'],
 }
 
-interface SearchResponse {
-  offices: any[]
-  agents: any[]
-  total: number
-}
 
 function SearchContent() {
   const searchParams = useSearchParams()
