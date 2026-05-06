@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import api from '@/lib/api'
 
 interface Stats {
   total_offices: number
@@ -61,14 +60,23 @@ export default function AdminPage() {
     }
 
     try {
+      const baseURL = typeof window !== 'undefined'
+        ? (window.location.hostname === 'localhost'
+          ? 'http://localhost:8000'
+          : 'https://realsearch-production-882c.up.railway.app')
+        : 'https://realsearch-production-882c.up.railway.app'
+
       const [statsRes, apiStatsRes, userStatsRes] = await Promise.all([
-        api.get('/api/admin/stats', { params: { password } }),
-        api.get('/api/admin/api-stats', { params: { password } }),
-        api.get('/api/admin/user-stats', { params: { password } }),
+        fetch(`${baseURL}/api/admin/stats?password=${password}`),
+        fetch(`${baseURL}/api/admin/api-stats?password=${password}`),
+        fetch(`${baseURL}/api/admin/user-stats?password=${password}`),
       ])
-      setStats(statsRes.data)
-      setApiStats(apiStatsRes.data)
-      setUserStats(userStatsRes.data)
+
+      if (!statsRes.ok) throw new Error('인증 실패')
+
+      setStats(await statsRes.json())
+      setApiStats(await apiStatsRes.json())
+      setUserStats(await userStatsRes.json())
       setAuthenticated(true)
       setMessage('인증 성공')
     } catch (error) {
@@ -82,14 +90,18 @@ export default function AdminPage() {
 
     setLoading(true)
     try {
-      await api.post('/api/admin/reset-views', null, {
-        params: { password },
+      const baseURL = typeof window !== 'undefined'
+        ? (window.location.hostname === 'localhost'
+          ? 'http://localhost:8000'
+          : 'https://realsearch-production-882c.up.railway.app')
+        : 'https://realsearch-production-882c.up.railway.app'
+
+      await fetch(`${baseURL}/api/admin/reset-views?password=${password}`, {
+        method: 'POST'
       })
       setMessage('조회수가 초기화되었습니다')
-      const res = await api.get('/api/admin/stats', {
-        params: { password },
-      })
-      setStats(res.data)
+      const res = await fetch(`${baseURL}/api/admin/stats?password=${password}`)
+      setStats(await res.json())
     } catch (error) {
       setMessage('오류가 발생했습니다')
     } finally {
@@ -107,28 +119,36 @@ export default function AdminPage() {
     setLoading(true)
     setUploadProgress(0)
     try {
+      const baseURL = typeof window !== 'undefined'
+        ? (window.location.hostname === 'localhost'
+          ? 'http://localhost:8000'
+          : 'https://realsearch-production-882c.up.railway.app')
+        : 'https://realsearch-production-882c.up.railway.app'
+
       const formData = new FormData()
       formData.append('file', csvFile)
 
-      const res = await api.post('/api/admin/csv-upload', formData, {
-        params: { password, data_type: csvType, sync_mode: syncMode },
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (progressEvent: any) => {
-          const progress = Math.round(
-            (progressEvent.loaded * 100) / progressEvent.total
-          )
-          setUploadProgress(progress)
-        },
-      })
-      setMessage(res.data.message)
-      setSyncResult(res.data)
+      const res = await fetch(
+        `${baseURL}/api/admin/csv-upload?password=${password}&data_type=${csvType}&sync_mode=${syncMode}`,
+        { method: 'POST', body: formData }
+      )
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.detail || 'CSV 업로드 실패')
+      }
+
+      const data = await res.json()
+      setMessage(data.message)
+      setSyncResult(data)
       setUploadProgress(100)
       setCsvFile(null)
       setTimeout(() => setUploadProgress(0), 1000)
-      const statsRes = await api.get('/api/admin/stats', { params: { password } })
-      setStats(statsRes.data)
+
+      const statsRes = await fetch(`${baseURL}/api/admin/stats?password=${password}`)
+      setStats(await statsRes.json())
     } catch (error: any) {
-      setMessage(error.response?.data?.detail || 'CSV 업로드 실패')
+      setMessage(error.message || 'CSV 업로드 실패')
       setUploadProgress(0)
     } finally {
       setLoading(false)
