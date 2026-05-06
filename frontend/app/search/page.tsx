@@ -3,7 +3,6 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import api from '@/lib/api'
 import { OfficeSummary, AgentSummary } from '@/types'
 
 const SIDO_LIST = [
@@ -82,15 +81,23 @@ function SearchContent() {
       setError(null)
 
       try {
-        const { data } = await api.get<SearchResponse>('/api/search', {
-          params: { q, type, sido, sigungu, limit: 50 },
+        const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+        const params = new URLSearchParams({
+          q,
+          type,
+          sido,
+          sigungu,
+          limit: '50'
         })
+        const response = await fetch(`${baseURL}/api/search?${params}`)
+        const data = await response.json()
 
         setOffices(data.offices || [])
         setAgents(data.agents || [])
         setTotal(data.total || 0)
         setPage(1)
       } catch (err) {
+        console.error('Search error:', err)
         setError('검색에 실패했습니다')
       } finally {
         setLoading(false)
