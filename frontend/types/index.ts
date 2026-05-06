@@ -81,6 +81,9 @@ export interface RankingItem {
   value: number
   value_label: string
   status: string | null
+  representative_name?: string | null
+  representative_experience?: number | null
+  representative_license_year?: number | null
 }
 
 export interface RegionSummary {

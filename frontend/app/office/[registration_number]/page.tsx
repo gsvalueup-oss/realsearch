@@ -10,7 +10,6 @@ import { extractLicenseYear } from '@/lib/licenseUtils'
 export default function OfficePage() {
   const params = useParams()
   const registrationNumberParam = params?.registration_number as string || ''
-  const registration_number = decodeURIComponent(registrationNumberParam)
 
   const [office, setOffice] = useState<OfficeDetail | null>(null)
   const [loading, setLoading] = useState(true)
