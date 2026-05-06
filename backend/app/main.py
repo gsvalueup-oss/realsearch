@@ -19,7 +19,8 @@ def add_test_data():
     db = SessionLocal()
     try:
         # 기존 데이터 확인
-        office_count = db.query(APIRequestLog).count()
+        from sqlalchemy import func
+        office_count = db.query(func.count(models.OfficeCurrent.id)).scalar() or 0
         if office_count > 0:
             return  # 이미 데이터가 있으면 스킵
 
