@@ -17,6 +17,7 @@ router = APIRouter(
 )
 
 ADMIN_PASSWORD = "admin123"
+CHUNK = 5000  # IN 절 최대 크기
 
 
 def verify_admin(password: str):
@@ -185,7 +186,6 @@ async def user_stats(
 
     cutoff = date.today() - timedelta(days=days)
 
-    # 일별 방문자 수
     daily_visitors = db.query(
         func.date(UserVisit.visited_at).label("visit_date"),
         func.count(func.distinct(UserVisit.ip_address)).label("unique_visitors"),
@@ -198,7 +198,6 @@ async def user_stats(
         func.date(UserVisit.visited_at).desc()
     ).all()
 
-    # 페이지별 방문 수
     page_stats = db.query(
         UserVisit.page,
         func.count(UserVisit.id).label("visit_count"),
@@ -211,7 +210,6 @@ async def user_stats(
         func.count(UserVisit.id).desc()
     ).limit(20).all()
 
-    # 시간대별 방문 수
     hourly_stats = db.query(
         func.date_trunc('hour', UserVisit.visited_at).label("visit_hour"),
         func.count(UserVisit.id).label("visit_count"),
@@ -223,7 +221,6 @@ async def user_stats(
         func.date_trunc('hour', UserVisit.visited_at).desc()
     ).limit(24).all()
 
-    # 상위 브라우저
     browser_stats = db.query(
         UserVisit.user_agent,
         func.count(UserVisit.id).label("visit_count"),
@@ -235,7 +232,6 @@ async def user_stats(
         func.count(UserVisit.id).desc()
     ).limit(10).all()
 
-    # 최근 방문자
     recent_visitors = db.query(
         UserVisit.ip_address,
         UserVisit.page,
@@ -292,7 +288,7 @@ async def user_stats(
         ],
         "browser_stats": [
             {
-                "user_agent": stat[0][:100],  # 길이 제한
+                "user_agent": stat[0][:100],
                 "visit_count": stat[1],
             }
             for stat in browser_stats
@@ -313,7 +309,7 @@ async def user_stats(
 async def upload_csv(
     password: str = Query("", description="관리자 비밀번호"),
     data_type: str = Query("office", description="office 또는 agent"),
-    sync_mode: str = Query("upsert", description="update(기존만) 또는 upsert(추가포함) 또는 sync(완전동기)"),
+    sync_mode: str = Query("upsert", description="update / upsert / sync"),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
@@ -328,32 +324,42 @@ async def upload_csv(
     try:
         contents = await file.read()
 
-        # 여러 인코딩 시도
         text = None
         for encoding in ['utf-8', 'cp949', 'euc-kr', 'latin-1']:
             try:
                 text = contents.decode(encoding)
                 break
-            except:
+            except Exception:
                 continue
 
         if text is None:
-            raise HTTPException(status_code=400, detail="파일 인코딩을 인식할 수 없습니다. UTF-8, CP949, EUC-KR 중 하나를 사용해주세요")
+            raise HTTPException(status_code=400, detail="파일 인코딩을 인식할 수 없습니다")
 
         reader = csv.DictReader(io.StringIO(text))
         rows = list(reader)
 
+        if not rows:
+            raise HTTPException(status_code=400, detail="CSV 파일이 비어 있습니다")
+
         if data_type == "office":
             return handle_office_upload(db, rows, sync_mode)
-        else:  # agent
+        else:
             return handle_agent_upload(db, rows, sync_mode)
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
+def _parse_date(date_str: str, fmt: str = "%Y-%m-%d"):
+    try:
+        return datetime.strptime(date_str.strip(), fmt).date()
+    except Exception:
+        return None
+
+
 def handle_office_upload(db: Session, rows: list, sync_mode: str):
-    """사무소 CSV 업로드 처리"""
     inserted = 0
     updated = 0
     deleted = 0
@@ -361,21 +367,14 @@ def handle_office_upload(db: Session, rows: list, sync_mode: str):
     updated_list = []
     deleted_list = []
 
-    # CSV의 등록번호 목록
+    # 1. CSV 전체 파싱
+    parsed = []
     csv_reg_numbers = set()
-
     for row in rows:
-        registration_number = row.get("사업자등록번호", "").strip()
-        if not registration_number:
+        reg = row.get("사업자등록번호", "").strip()
+        if not reg:
             continue
-
-        csv_reg_numbers.add(registration_number)
-
-        office = db.query(OfficeCurrent).filter(
-            OfficeCurrent.registration_number == registration_number
-        ).first()
-
-        # 모든 가능한 필드 업데이트
+        csv_reg_numbers.add(reg)
         new_data = {
             'office_name': row.get("상호명", "").strip(),
             'representative_name': row.get("대표자명", "").strip() or None,
@@ -386,70 +385,81 @@ def handle_office_upload(db: Session, rows: list, sync_mode: str):
             'sigungu': row.get("시군구", "").strip() or None,
             'status': row.get("영업상태", "").strip() or None,
         }
+        reg_date = _parse_date(row.get("등록일자", ""))
+        if reg_date:
+            new_data['registered_date'] = reg_date
+        parsed.append((reg, new_data))
 
-        # registered_date 파싱
-        reg_date_str = row.get("등록일자", "").strip()
-        if reg_date_str:
-            try:
-                new_data['registered_date'] = datetime.strptime(reg_date_str, "%Y-%m-%d").date()
-            except:
-                pass
+    if not parsed:
+        return _empty_result("처리할 데이터가 없습니다")
 
+    # 2. CSV에 있는 등록번호만 배치 조회 (N+1 → ceil(N/5000) 쿼리)
+    existing_offices: dict[str, OfficeCurrent] = {}
+    reg_list = list(csv_reg_numbers)
+    for i in range(0, len(reg_list), CHUNK):
+        chunk = reg_list[i:i + CHUNK]
+        for o in db.query(OfficeCurrent).filter(OfficeCurrent.registration_number.in_(chunk)).all():
+            existing_offices[o.registration_number] = o
+
+    # 3. 처리
+    to_insert = []
+    for reg, new_data in parsed:
+        office = existing_offices.get(reg)
         if office:
-            # UPDATE 모드: 기존 데이터만 업데이트
             changes = {}
             for key, value in new_data.items():
                 if value is not None and getattr(office, key, None) != value:
-                    changes[key] = {"before": getattr(office, key, None), "after": value}
+                    changes[key] = {"before": getattr(office, key), "after": value}
                     setattr(office, key, value)
-
             if changes:
                 updated += 1
                 updated_list.append({
-                    "registration_number": registration_number,
+                    "registration_number": reg,
                     "office_name": office.office_name,
-                    "changes": changes
+                    "changes": changes,
                 })
-        else:
-            # UPSERT/SYNC 모드: 새 데이터 추가
-            if sync_mode in ["upsert", "sync"]:
-                new_office = OfficeCurrent(
-                    registration_number=registration_number,
-                    **new_data
-                )
-                db.add(new_office)
-                inserted += 1
-                inserted_list.append({
-                    "registration_number": registration_number,
-                    "office_name": new_data.get('office_name', ''),
-                })
+        elif sync_mode in ["upsert", "sync"]:
+            to_insert.append(OfficeCurrent(registration_number=reg, **new_data))
+            inserted += 1
+            inserted_list.append({
+                "registration_number": reg,
+                "office_name": new_data.get('office_name', ''),
+            })
 
-    # SYNC 모드: CSV에 없는 데이터는 삭제
-    if sync_mode == "sync":
-        offices_to_delete = db.query(OfficeCurrent).filter(
+    # 4. 배치 INSERT
+    if to_insert:
+        db.bulk_save_objects(to_insert)
+
+    # 5. sync 모드: CSV에 없는 사무소 삭제
+    if sync_mode == "sync" and csv_reg_numbers:
+        # 삭제 대상 정보 수집
+        to_delete_rows = db.query(
+            OfficeCurrent.registration_number, OfficeCurrent.office_name
+        ).filter(
             ~OfficeCurrent.registration_number.in_(csv_reg_numbers)
         ).all()
-        deleted = len(offices_to_delete)
-        for office in offices_to_delete:
-            deleted_list.append({
-                "registration_number": office.registration_number,
-                "office_name": office.office_name,
-            })
-            db.delete(office)
+        deleted = len(to_delete_rows)
+        deleted_list = [{"registration_number": r[0], "office_name": r[1]} for r in to_delete_rows]
+
+        if deleted > 0:
+            to_delete_regs = [r[0] for r in to_delete_rows]
+            # 연관 agent 먼저 삭제 (FK 제약 위반 방지)
+            for i in range(0, len(to_delete_regs), CHUNK):
+                chunk = to_delete_regs[i:i + CHUNK]
+                db.query(AgentCurrent).filter(
+                    AgentCurrent.office_registration_number.in_(chunk)
+                ).delete(synchronize_session=False)
+            # 사무소 삭제
+            for i in range(0, len(to_delete_regs), CHUNK):
+                chunk = to_delete_regs[i:i + CHUNK]
+                db.query(OfficeCurrent).filter(
+                    OfficeCurrent.registration_number.in_(chunk)
+                ).delete(synchronize_session=False)
 
     db.commit()
+    _update_sync_log(db, "office")
 
-    # DataSyncLog 업데이트
-    sync_log = db.query(DataSyncLog).filter(DataSyncLog.data_type == "office").first()
-    if not sync_log:
-        sync_log = DataSyncLog(data_type="office")
-        db.add(sync_log)
-    sync_log.last_sync_date = date.today()
-    sync_log.last_sync_time = datetime.utcnow()
-    sync_log.record_count = db.query(func.count(OfficeCurrent.id)).scalar() or 0
-    db.commit()
-
-    message = f"사무소 데이터 동기화 완료 - 신규: {inserted}, 업데이트: {updated}"
+    message = f"사무소 동기화 완료 - 신규: {inserted}, 업데이트: {updated}"
     if sync_mode == "sync":
         message += f", 삭제: {deleted}"
 
@@ -465,7 +475,6 @@ def handle_office_upload(db: Session, rows: list, sync_mode: str):
 
 
 def handle_agent_upload(db: Session, rows: list, sync_mode: str):
-    """중개업자 CSV 업로드 처리"""
     inserted = 0
     updated = 0
     deleted = 0
@@ -473,23 +482,15 @@ def handle_agent_upload(db: Session, rows: list, sync_mode: str):
     updated_list = []
     deleted_list = []
 
-    # CSV의 (name, office_reg) 조합 목록
-    csv_agent_keys = set()
-
+    # 1. CSV 전체 파싱
+    parsed = []
+    csv_agent_keys: set[tuple[str, str]] = set()  # (name, office_reg)
     for row in rows:
-        agent_name = row.get("성명", "").strip()
+        name = row.get("성명", "").strip()
         office_reg = row.get("중개사무소등록번호", "").strip()
-        if not agent_name or not office_reg:
+        if not name or not office_reg:
             continue
-
-        csv_agent_keys.add((agent_name, office_reg))
-
-        agent = db.query(AgentCurrent).filter(
-            AgentCurrent.name == agent_name,
-            AgentCurrent.office_registration_number == office_reg,
-        ).first()
-
-        # 모든 가능한 필드 업데이트
+        csv_agent_keys.add((name, office_reg))
         new_data = {
             'role': row.get("직위", "").strip() or None,
             'office_name': row.get("중개사무소명", "").strip() or None,
@@ -500,80 +501,113 @@ def handle_agent_upload(db: Session, rows: list, sync_mode: str):
             'sigungu': row.get("시군구", "").strip() or None,
             'address': row.get("주소", "").strip() or None,
         }
-
-        # license_date 파싱
         lic_date_str = row.get("자격취득년도", "").strip()
         if lic_date_str:
-            try:
-                # "YYYY-MM-DD" 또는 "YYYY" 형식 처리
-                if len(lic_date_str) == 4:  # 연도만 있으면 01-01로
-                    new_data['license_date'] = datetime.strptime(f"{lic_date_str}-01-01", "%Y-%m-%d").date()
-                else:
-                    new_data['license_date'] = datetime.strptime(lic_date_str, "%Y-%m-%d").date()
-            except:
-                pass
+            if len(lic_date_str) == 4:
+                lic_date = _parse_date(f"{lic_date_str}-01-01")
+            else:
+                lic_date = _parse_date(lic_date_str)
+            if lic_date:
+                new_data['license_date'] = lic_date
+        parsed.append((name, office_reg, new_data))
 
+    if not parsed:
+        return _empty_result("처리할 데이터가 없습니다")
+
+    # 2. 유효한 사무소 등록번호 확인 (Fix #3: FK 오류 방지)
+    csv_office_regs = {office_reg for _, office_reg, _ in parsed}
+    valid_office_regs: set[str] = set()
+    office_reg_list = list(csv_office_regs)
+    for i in range(0, len(office_reg_list), CHUNK):
+        chunk = office_reg_list[i:i + CHUNK]
+        rows_result = db.query(OfficeCurrent.registration_number).filter(
+            OfficeCurrent.registration_number.in_(chunk)
+        ).all()
+        valid_office_regs.update(r[0] for r in rows_result)
+
+    # 3. CSV에 있는 (name, office_reg) 기준으로 기존 agent 배치 조회
+    csv_names = list({name for name, _, _ in parsed})
+    existing_agents: dict[tuple[str, str], AgentCurrent] = {}
+    for i in range(0, len(csv_names), CHUNK):
+        chunk = csv_names[i:i + CHUNK]
+        for a in db.query(AgentCurrent).filter(AgentCurrent.name.in_(chunk)).all():
+            existing_agents[(a.name, a.office_registration_number)] = a
+
+    # 4. 처리
+    to_insert = []
+    skipped = 0
+    for name, office_reg, new_data in parsed:
+        agent = existing_agents.get((name, office_reg))
         if agent:
-            # UPDATE 모드: 기존 데이터만 업데이트
             changes = {}
             for key, value in new_data.items():
                 if value is not None and getattr(agent, key, None) != value:
-                    changes[key] = {"before": getattr(agent, key, None), "after": value}
+                    changes[key] = {"before": getattr(agent, key), "after": value}
                     setattr(agent, key, value)
-
             if changes:
                 updated += 1
                 updated_list.append({
-                    "name": agent.name,
+                    "name": name,
                     "office_name": agent.office_name,
-                    "changes": changes
+                    "changes": changes,
                 })
-        else:
-            # UPSERT/SYNC 모드: 새 데이터 추가
-            if sync_mode in ["upsert", "sync"]:
-                new_agent = AgentCurrent(
-                    name=agent_name,
-                    office_registration_number=office_reg,
-                    **new_data
-                )
-                db.add(new_agent)
-                inserted += 1
-                inserted_list.append({
-                    "name": agent_name,
-                    "office_name": new_data.get('office_name', ''),
-                })
-
-    # SYNC 모드: CSV에 없는 데이터는 삭제
-    if sync_mode == "sync":
-        agents_to_delete = db.query(AgentCurrent).filter(
-            ~db.query(AgentCurrent).filter(
-                AgentCurrent.name.in_([k[0] for k in csv_agent_keys]),
-                AgentCurrent.office_registration_number.in_([k[1] for k in csv_agent_keys]),
-            ).exists()
-        ).all()
-        deleted = len(agents_to_delete)
-        for agent in agents_to_delete:
-            deleted_list.append({
-                "name": agent.name,
-                "office_name": agent.office_name,
+        elif sync_mode in ["upsert", "sync"]:
+            # FK 오류 방지: 사무소가 DB에 없으면 건너뜀
+            if office_reg not in valid_office_regs:
+                skipped += 1
+                continue
+            to_insert.append(AgentCurrent(
+                name=name,
+                office_registration_number=office_reg,
+                **new_data,
+            ))
+            inserted += 1
+            inserted_list.append({
+                "name": name,
+                "office_name": new_data.get('office_name', ''),
             })
-            db.delete(agent)
+
+    # 5. 배치 INSERT
+    if to_insert:
+        db.bulk_save_objects(to_insert)
+
+    # 6. sync 모드: CSV에 없는 agent 삭제 (Fix #1: 올바른 쿼리)
+    if sync_mode == "sync":
+        # DB의 모든 (id, name, office_reg) 로드 후 메모리에서 차집합 계산
+        all_db_agents = db.query(
+            AgentCurrent.id, AgentCurrent.name, AgentCurrent.office_registration_number
+        ).all()
+
+        to_delete_ids = [
+            row[0] for row in all_db_agents
+            if (row[1], row[2]) not in csv_agent_keys
+        ]
+        deleted = len(to_delete_ids)
+
+        if deleted > 0:
+            # 삭제 목록 (응답용)
+            for i in range(0, len(to_delete_ids), CHUNK):
+                chunk = to_delete_ids[i:i + CHUNK]
+                info = db.query(AgentCurrent.name, AgentCurrent.office_name).filter(
+                    AgentCurrent.id.in_(chunk)
+                ).all()
+                deleted_list.extend({"name": r[0], "office_name": r[1]} for r in info)
+
+            # 배치 삭제
+            for i in range(0, len(to_delete_ids), CHUNK):
+                chunk = to_delete_ids[i:i + CHUNK]
+                db.query(AgentCurrent).filter(
+                    AgentCurrent.id.in_(chunk)
+                ).delete(synchronize_session=False)
 
     db.commit()
+    _update_sync_log(db, "agent")
 
-    # DataSyncLog 업데이트
-    sync_log = db.query(DataSyncLog).filter(DataSyncLog.data_type == "agent").first()
-    if not sync_log:
-        sync_log = DataSyncLog(data_type="agent")
-        db.add(sync_log)
-    sync_log.last_sync_date = date.today()
-    sync_log.last_sync_time = datetime.utcnow()
-    sync_log.record_count = db.query(func.count(AgentCurrent.id)).scalar() or 0
-    db.commit()
-
-    message = f"중개업자 데이터 동기화 완료 - 신규: {inserted}, 업데이트: {updated}"
+    message = f"중개업자 동기화 완료 - 신규: {inserted}, 업데이트: {updated}"
     if sync_mode == "sync":
         message += f", 삭제: {deleted}"
+    if skipped:
+        message += f" (사무소 미등록으로 건너뜀: {skipped}건)"
 
     return {
         "message": message,
@@ -583,4 +617,28 @@ def handle_agent_upload(db: Session, rows: list, sync_mode: str):
         "inserted_list": inserted_list,
         "updated_list": updated_list,
         "deleted_list": deleted_list,
+    }
+
+
+def _update_sync_log(db: Session, data_type: str):
+    model = OfficeCurrent if data_type == "office" else AgentCurrent
+    sync_log = db.query(DataSyncLog).filter(DataSyncLog.data_type == data_type).first()
+    if not sync_log:
+        sync_log = DataSyncLog(data_type=data_type)
+        db.add(sync_log)
+    sync_log.last_sync_date = date.today()
+    sync_log.last_sync_time = datetime.utcnow()
+    sync_log.record_count = db.query(func.count(model.id)).scalar() or 0
+    db.commit()
+
+
+def _empty_result(message: str):
+    return {
+        "message": message,
+        "inserted": 0,
+        "updated": 0,
+        "deleted": 0,
+        "inserted_list": [],
+        "updated_list": [],
+        "deleted_list": [],
     }
