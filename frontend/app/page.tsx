@@ -12,6 +12,11 @@ export default function Home() {
   const [searchError, setSearchError] = useState('')
   const [stats, setStats] = useState({ totalOffices: 0, totalAgents: 0, regions: 0 })
   const [statsLoading, setStatsLoading] = useState(true)
+  const [todayDate, setTodayDate] = useState('')
+
+  useEffect(() => {
+    setTodayDate(new Date().toLocaleDateString('ko-KR'))
+  }, [])
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -67,60 +72,6 @@ export default function Home() {
 
           {/* 검색 폼 */}
           <form onSubmit={handleSearch} className="mb-10 sm:mb-12 md:mb-16">
-            <style>{`
-              .search-form-card {
-                background: #13192B;
-                border: 1px solid rgba(255, 255, 255, 0.08);
-                transition: all 0.3s ease;
-              }
-              .search-form-card:focus-within {
-                border-color: #3182F6;
-                box-shadow: 0 0 20px rgba(49, 130, 246, 0.2);
-              }
-              .search-input-box {
-                background: #0A0E1A;
-                border: 1px solid rgba(255, 255, 255, 0.08);
-              }
-              .search-input-box:focus-within {
-                border-color: #3182F6;
-              }
-              .search-input {
-                background: transparent;
-                border: none;
-                outline: none;
-                color: white;
-              }
-              .search-input::placeholder {
-                color: rgba(255, 255, 255, 0.4);
-              }
-              .pill-btn {
-                background: rgba(255, 255, 255, 0.08);
-                color: rgba(255, 255, 255, 0.6);
-                border: 1px solid rgba(255, 255, 255, 0.08);
-                transition: all 0.2s ease;
-                cursor: pointer;
-              }
-              .pill-btn:hover {
-                background: rgba(255, 255, 255, 0.12);
-              }
-              .pill-btn.active {
-                background: #3182F6;
-                color: white;
-                border-color: #3182F6;
-              }
-              .search-btn {
-                background: #3182F6;
-                color: white;
-                transition: all 0.2s ease;
-                cursor: pointer;
-              }
-              .search-btn:hover {
-                background: #2563EB;
-              }
-              .search-btn:active {
-                background: #1D4ED8;
-              }
-            `}</style>
             <div className="search-form-card rounded-2xl p-4 sm:p-6 md:p-8">
               {/* 검색 입력 */}
               <div className="mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3 search-input-box px-3 sm:px-4 py-2 sm:py-3 rounded-lg">
@@ -234,7 +185,7 @@ export default function Home() {
                   </p>
                   <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">100%</div>
                   <p style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.7rem sm:text-xs', marginTop: '0.5rem' }}>
-                    데이터 기준일: {new Date().toLocaleDateString('ko-KR')}
+                    데이터 기준일: {todayDate}
                   </p>
                 </div>
                 <span style={{ color: '#3182F6', fontSize: '1.25rem sm:text-2xl', marginLeft: '0.5rem', flexShrink: 0 }}>●</span>
@@ -247,17 +198,6 @@ export default function Home() {
       {/* 기능 섹션 */}
       <section className="w-full px-4 py-12 sm:py-16 md:py-24 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
-          <style>{`
-            .feature-card {
-              background: #13192B;
-              border: 1px solid rgba(255, 255, 255, 0.08);
-              transition: all 0.3s ease;
-            }
-            .feature-card:hover {
-              border-color: #3182F6;
-              box-shadow: 0 0 20px rgba(49, 130, 246, 0.15);
-            }
-          `}</style>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
             {/* 세부 검색 */}
             <Link href="/advanced-search" className="feature-card rounded-xl p-4 sm:p-6 cursor-pointer">

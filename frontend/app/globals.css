@@ -228,6 +228,157 @@ code {
   background-color: #f9fafc;
 }
 
+/* 홈 검색 폼 */
+.search-form-card {
+  background: #13192B;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.3s ease;
+}
+.search-form-card:focus-within {
+  border-color: #3182F6;
+  box-shadow: 0 0 20px rgba(49, 130, 246, 0.2);
+}
+.search-input-box {
+  background: #0A0E1A;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.search-input-box:focus-within {
+  border-color: #3182F6;
+}
+.search-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: white;
+}
+.search-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+.pill-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.pill-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.pill-btn.active {
+  background: #3182F6;
+  color: white;
+  border-color: #3182F6;
+}
+.search-btn {
+  background: #3182F6;
+  color: white;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.search-btn:hover {
+  background: #2563EB;
+}
+.search-btn:active {
+  background: #1D4ED8;
+}
+
+/* 기능 카드 */
+.feature-card {
+  background: #13192B;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.3s ease;
+}
+.feature-card:hover {
+  border-color: #3182F6;
+  box-shadow: 0 0 20px rgba(49, 130, 246, 0.15);
+}
+
+/* 다크 셀렉트 */
+.dark-select {
+  background: #13192B;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.dark-select:focus {
+  border-color: #3182F6;
+  outline: none;
+}
+.dark-select option {
+  background: #1a2236;
+  color: white;
+}
+
+/* 랭킹 탭 */
+.ranking-tab {
+  border-bottom: 2px solid transparent;
+  color: rgba(255, 255, 255, 0.6);
+  transition: all 0.2s;
+}
+.ranking-tab.active {
+  border-bottom-color: #3182F6;
+  color: #3182F6;
+}
+.ranking-tab:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* 검색 셀렉트 */
+.search-select {
+  background: #13192B;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.875rem;
+}
+.search-select:focus {
+  outline: none;
+  border-color: #3182F6;
+  box-shadow: 0 0 0 2px rgba(49, 130, 246, 0.1);
+}
+.search-select:disabled {
+  opacity: 0.5;
+}
+.search-select option {
+  background: #13192B;
+  color: white;
+}
+
+/* 검색 결과 탭 */
+.tab-button {
+  color: rgba(255, 255, 255, 0.6);
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  padding: 12px 16px;
+  font-weight: 500;
+}
+.tab-button.active {
+  color: #3182F6;
+  border-bottom-color: #3182F6;
+}
+.tab-button:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* 검색 결과 카드 */
+.result-card {
+  background: #13192B;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.3s;
+}
+.result-card:hover {
+  border-color: #3182F6;
+  box-shadow: 0 0 20px rgba(49, 130, 246, 0.15);
+}
+
+/* shimmer 애니메이션 */
+@keyframes shimmer {
+  0% { transform: translateX(-100%) scaleX(2.5); }
+  100% { transform: translateX(350%) scaleX(2.5); }
+}
+
 /* 푸터 링크 */
 .footer-link {
   color: rgba(255, 255, 255, 0.5);

@@ -70,34 +70,6 @@ export default function RankingsPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <style>{`
-        .dark-select {
-          background: #13192B;
-          color: white;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .dark-select:focus {
-          border-color: #3182F6;
-          outline: none;
-        }
-        .dark-select option {
-          background: #1a2236;
-          color: white;
-        }
-        .ranking-tab {
-          border-bottom: 2px solid transparent;
-          color: rgba(255, 255, 255, 0.6);
-          transition: all 0.2s;
-        }
-        .ranking-tab.active {
-          border-bottom-color: #3182F6;
-          color: #3182F6;
-        }
-        .ranking-tab:hover {
-          color: rgba(255, 255, 255, 0.8);
-        }
-      `}</style>
-
       <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-8">
         {activeTab === 'by-staff' && '직원 수 Top 50'}
         {activeTab === 'by-age' && '운영 기간 Top 50'}

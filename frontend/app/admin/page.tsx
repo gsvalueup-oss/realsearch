@@ -406,7 +406,6 @@ export default function AdminPage() {
                     animation: 'shimmer 1.4s ease-in-out infinite',
                   }} />
                 </div>
-                <style>{`@keyframes shimmer { 0% { transform: translateX(-100%) scaleX(2.5); } 100% { transform: translateX(350%) scaleX(2.5); } }`}</style>
               </div>
             )}
 

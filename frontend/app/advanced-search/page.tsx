@@ -116,22 +116,6 @@ export default function AdvancedSearchPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <style>{`
-        .dark-select {
-          background: #13192B;
-          color: white;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .dark-select:focus {
-          border-color: #3182F6;
-          outline: none;
-        }
-        .dark-select option {
-          background: #1a2236;
-          color: white;
-        }
-      `}</style>
-
       {/* 검색 필터 */}
       <div className="rounded-xl p-6 mb-8 border" style={{
         background: '#13192B',

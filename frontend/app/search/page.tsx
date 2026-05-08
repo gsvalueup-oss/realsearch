@@ -144,54 +144,6 @@ function SearchContent() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <style>{`
-        .search-select {
-          background: #13192B;
-          color: white;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 8px;
-          padding: 10px 12px;
-          font-size: 0.875rem;
-        }
-        .search-select:focus {
-          outline: none;
-          border-color: #3182F6;
-          box-shadow: 0 0 0 2px rgba(49, 130, 246, 0.1);
-        }
-        .search-select:disabled {
-          opacity: 0.5;
-        }
-        .search-select option {
-          background: #13192B;
-          color: white;
-        }
-        .tab-button {
-          color: rgba(255, 255, 255, 0.6);
-          border-bottom: 2px solid transparent;
-          transition: all 0.2s;
-          padding: 12px 16px;
-          font-weight: 500;
-        }
-        .tab-button.active {
-          color: #3182F6;
-          border-bottom-color: #3182F6;
-        }
-        .tab-button:hover {
-          color: rgba(255, 255, 255, 0.8);
-        }
-        .result-card {
-          background: #13192B;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 12px;
-          padding: 16px;
-          transition: all 0.3s;
-        }
-        .result-card:hover {
-          border-color: #3182F6;
-          box-shadow: 0 0 20px rgba(49, 130, 246, 0.15);
-        }
-      `}</style>
-
       {/* 새 검색 폼 */}
       <form onSubmit={handleNewSearch} className="rounded-xl p-6 mb-8 border" style={{
         background: '#13192B',
