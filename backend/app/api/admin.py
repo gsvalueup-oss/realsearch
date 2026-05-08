@@ -329,32 +329,29 @@ def handle_office_upload(db: Session, rows: list, dry_run: bool):
 def handle_agent_upload(db: Session, rows: list, dry_run: bool):
     # 1. CSV 파싱 (항상 sync 모드)
     parsed: list[tuple[str, str, dict]] = []
-    csv_agent_keys: set[tuple[str, str]] = set()
+    csv_agent_keys: set[tuple[str, str, str]] = set()  # (name, office_reg, role)
     skipped_excel = 0
     for row in rows:
-        # 국토부 CSV 컬럼명 기준
         name = row.get("중개업자명", "").strip()
         office_reg = row.get("등록번호", "").strip()
         if not name or not office_reg:
             continue
-        # Excel 과학적 표기법 스킵
         if re.search(r'[Ee][+\-]\d+', office_reg):
             skipped_excel += 1
             continue
         if re.search(r'[A-Za-z]', office_reg):
             skipped_excel += 1
             continue
-        # 중복 행 스킵
-        if (name, office_reg) in csv_agent_keys:
+        role = row.get("직위구분명", "").strip() or ''
+        if (name, office_reg, role) in csv_agent_keys:
             continue
-        csv_agent_keys.add((name, office_reg))
-        # 법정동명에서 시도/시군구 파싱
+        csv_agent_keys.add((name, office_reg, role))
         legal_dong = row.get("법정동명", "").strip()
         parts = legal_dong.split()
         sido = parts[0] if parts else None
         sigungu = parts[1] if len(parts) > 1 else None
         new_data = {
-            'role': row.get("직위구분명", "").strip() or None,
+            'role': role or None,
             'office_name': row.get("사업자상호", "").strip() or None,
             'license_number': row.get("자격증번호", "").strip() or None,
             'agent_type': row.get("중개업자종별명", "").strip() or None,
@@ -377,13 +374,13 @@ def handle_agent_upload(db: Session, rows: list, dry_run: bool):
         for r in db.query(OfficeCurrent.registration_number).filter(OfficeCurrent.registration_number.in_(chunk)).all():
             valid_office_regs.add(r[0])
 
-    # 3. CSV 이름 기준 기존 레코드 배치 조회
+    # 3. (이름, 사무소등록번호, 역할) 기준 기존 레코드 조회
     csv_names = list({name for name, _, _ in parsed})
-    existing: dict[tuple[str, str], AgentCurrent] = {}
+    existing: dict[tuple[str, str, str], AgentCurrent] = {}
     for i in range(0, len(csv_names), CHUNK):
         chunk = csv_names[i:i + CHUNK]
         for a in db.query(AgentCurrent).filter(AgentCurrent.name.in_(chunk)).all():
-            existing[(a.name, a.office_registration_number)] = a
+            existing[(a.name, a.office_registration_number, a.role or '')] = a
 
     # 4. 차이 계산
     to_insert_maps: list[dict] = []
@@ -393,7 +390,8 @@ def handle_agent_upload(db: Session, rows: list, dry_run: bool):
     skipped = 0
 
     for name, office_reg, new_data in parsed:
-        agent = existing.get((name, office_reg))
+        role_key = new_data.get('role') or ''
+        agent = existing.get((name, office_reg, role_key))
         if agent:
             changes = {}
             update_fields: dict = {'id': agent.id}
@@ -412,9 +410,9 @@ def handle_agent_upload(db: Session, rows: list, dry_run: bool):
             inserted_list.append({"name": name, "office_name": new_data.get('office_name', '')})
 
     # 5. 삭제 대상 계산
-    all_db = db.query(AgentCurrent.id, AgentCurrent.name, AgentCurrent.office_registration_number, AgentCurrent.office_name).all()
-    to_delete = [(r[0], r[2], r[3]) for r in all_db if (r[1], r[2]) not in csv_agent_keys]
-    deleted_list = [{"name": r[1], "office_name": r[2]} for r in all_db if (r[1], r[2]) not in csv_agent_keys]
+    all_db = db.query(AgentCurrent.id, AgentCurrent.name, AgentCurrent.office_registration_number, AgentCurrent.office_name, AgentCurrent.role).all()
+    to_delete = [(r[0], r[2], r[3]) for r in all_db if (r[1], r[2], r[4] or '') not in csv_agent_keys]
+    deleted_list = [{"name": r[1], "office_name": r[3]} for r in all_db if (r[1], r[2], r[4] or '') not in csv_agent_keys]
 
     inserted = len(to_insert_maps)
     updated = len(to_update_maps)
