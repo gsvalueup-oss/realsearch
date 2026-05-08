@@ -96,10 +96,7 @@ export default function AdminPage() {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null)
 
-  const getBaseURL = () =>
-    typeof window !== 'undefined' && window.location.hostname === 'localhost'
-      ? 'http://localhost:8000'
-      : 'https://realsearch-production-882c.up.railway.app'
+  const getBaseURL = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
