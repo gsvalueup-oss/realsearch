@@ -6,10 +6,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 from datetime import date, timedelta, datetime
 from app.db.database import get_db
-from app.db.models import OfficeCurrent, AgentCurrent, DataSyncLog, APIRequestLog, UserVisit
+from app.db.models import OfficeCurrent, AgentCurrent, DataSyncLog, DailySyncResult, APIRequestLog, UserVisit
 from app.db import schemas
 import csv
 import io
+import re
 
 router = APIRouter(
     prefix="/api/admin",
@@ -162,7 +163,6 @@ async def user_stats(
 async def upload_csv(
     password: str = Query(""),
     data_type: str = Query("office"),
-    sync_mode: str = Query("upsert"),
     dry_run: bool = Query(False, description="True: 미리보기만 / False: 실제 적용"),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -171,8 +171,6 @@ async def upload_csv(
 
     if data_type not in ["office", "agent"]:
         raise HTTPException(status_code=400, detail="data_type은 office 또는 agent여야 합니다")
-    if sync_mode not in ["update", "upsert", "sync"]:
-        raise HTTPException(status_code=400, detail="sync_mode는 update, upsert, sync 중 하나여야 합니다")
 
     try:
         contents = await file.read()
@@ -191,9 +189,9 @@ async def upload_csv(
             raise HTTPException(status_code=400, detail="CSV 파일이 비어 있습니다")
 
         if data_type == "office":
-            return handle_office_upload(db, rows, sync_mode, dry_run)
+            return handle_office_upload(db, rows, dry_run)
         else:
-            return handle_agent_upload(db, rows, sync_mode, dry_run)
+            return handle_agent_upload(db, rows, dry_run)
 
     except HTTPException:
         raise
@@ -203,17 +201,21 @@ async def upload_csv(
 
 # ── 사무소 업로드 ────────────────────────────────────────────────────────────
 
-def handle_office_upload(db: Session, rows: list, sync_mode: str, dry_run: bool):
-    # 1. CSV 파싱
+def handle_office_upload(db: Session, rows: list, dry_run: bool):
+    # 1. CSV 파싱 (항상 sync 모드)
     parsed: list[tuple[str, dict]] = []
     csv_reg_numbers: set[str] = set()
+    skipped_excel = 0
     for row in rows:
-        # 국토부 CSV 컬럼명 기준 (등록번호, 사업자상호, ...)
         reg = row.get("등록번호", "").strip()
         if not reg:
             continue
+        if re.search(r'[Ee][+\-]\d+', reg):
+            skipped_excel += 1
+            continue
+        if reg in csv_reg_numbers:
+            continue
         csv_reg_numbers.add(reg)
-        # 법정동명에서 시도/시군구 파싱 (예: "서울특별시 강남구 역삼동")
         legal_dong = row.get("법정동명", "").strip()
         parts = legal_dong.split()
         sido = parts[0] if parts else None
@@ -233,17 +235,17 @@ def handle_office_upload(db: Session, rows: list, sync_mode: str, dry_run: bool)
             new_data['registered_date'] = reg_date
         parsed.append((reg, new_data))
 
-    if not parsed:
+    if not parsed and not skipped_excel:
         return _empty_result("처리할 데이터가 없습니다", dry_run)
 
-    # 2. CSV 등록번호에 해당하는 기존 레코드 배치 조회
+    # 2. 기존 레코드 배치 조회
     existing: dict[str, OfficeCurrent] = {}
     for i in range(0, len(csv_reg_numbers), CHUNK):
         chunk = list(csv_reg_numbers)[i:i + CHUNK]
         for o in db.query(OfficeCurrent).filter(OfficeCurrent.registration_number.in_(chunk)).all():
             existing[o.registration_number] = o
 
-    # 3. 차이 계산 (DB 변경 없음)
+    # 3. 차이 계산
     to_insert_maps: list[dict] = []
     to_update_maps: list[dict] = []
     inserted_list: list[dict] = []
@@ -260,18 +262,20 @@ def handle_office_upload(db: Session, rows: list, sync_mode: str, dry_run: bool)
                     update_fields[key] = value
             if changes:
                 to_update_maps.append(update_fields)
-                updated_list.append({"registration_number": reg, "office_name": office.office_name, "changes": changes})
-        elif sync_mode in ["upsert", "sync"]:
+                updated_list.append({"registration_number": reg, "office_name": office.office_name,
+                                     "sido": office.sido, "sigungu": office.sigungu, "changes": changes})
+        else:
             to_insert_maps.append({"registration_number": reg, **new_data})
-            inserted_list.append({"registration_number": reg, "office_name": new_data.get('office_name', '')})
+            inserted_list.append({"registration_number": reg, "office_name": new_data.get('office_name', ''),
+                                   "sido": new_data.get('sido'), "sigungu": new_data.get('sigungu')})
 
-    # 4. 삭제 대상 계산 (sync 모드)
-    deleted_list: list[dict] = []
-    if sync_mode == "sync":
-        to_delete_rows = db.query(OfficeCurrent.registration_number, OfficeCurrent.office_name).filter(
-            ~OfficeCurrent.registration_number.in_(csv_reg_numbers)
-        ).all()
-        deleted_list = [{"registration_number": r[0], "office_name": r[1]} for r in to_delete_rows]
+    # 4. 폐업 대상 계산 (CSV에 없는 기존 레코드)
+    to_delete_rows = db.query(
+        OfficeCurrent.registration_number, OfficeCurrent.office_name,
+        OfficeCurrent.sido, OfficeCurrent.sigungu
+    ).filter(~OfficeCurrent.registration_number.in_(csv_reg_numbers)).all()
+    deleted_list = [{"registration_number": r[0], "office_name": r[1], "sido": r[2], "sigungu": r[3]}
+                    for r in to_delete_rows]
 
     inserted = len(to_insert_maps)
     updated = len(to_update_maps)
@@ -279,17 +283,21 @@ def handle_office_upload(db: Session, rows: list, sync_mode: str, dry_run: bool)
 
     # 5. 안전 검사
     safety_warning = _check_delete_safety(db, OfficeCurrent, deleted, "사무소")
+    excel_warning = f"⚠️ Excel 과학적 표기법 등록번호 {skipped_excel:,}건 제외됨" if skipped_excel else None
 
     if dry_run:
-        return _preview_result("사무소", inserted, updated, deleted, safety_warning,
-                               inserted_list, updated_list, deleted_list)
+        result = _preview_result("사무소", inserted, updated, deleted, safety_warning,
+                                 inserted_list, updated_list, deleted_list)
+        if excel_warning:
+            result["excel_warning"] = excel_warning
+        return result
 
     # 6. 실제 적용
     if to_insert_maps:
         db.bulk_insert_mappings(OfficeCurrent, to_insert_maps)
     if to_update_maps:
         db.bulk_update_mappings(OfficeCurrent, to_update_maps)
-    if sync_mode == "sync" and deleted_list:
+    if deleted_list:
         to_delete_regs = [r["registration_number"] for r in deleted_list]
         for i in range(0, len(to_delete_regs), CHUNK):
             chunk = to_delete_regs[i:i + CHUNK]
@@ -300,8 +308,11 @@ def handle_office_upload(db: Session, rows: list, sync_mode: str, dry_run: bool)
 
     db.commit()
     _update_sync_log(db, "office")
+    _save_daily_sync_result(db, inserted_list, updated_list, deleted_list)
 
-    message = f"사무소 업데이트 완료 — 신규 {inserted:,}개 · 수정 {updated:,}개 · 삭제 {deleted:,}개"
+    message = f"사무소 업데이트 완료 — 신규 {inserted:,}개 · 수정 {updated:,}개 · 폐업 {deleted:,}개"
+    if skipped_excel:
+        message += f" (Excel 변환 오류 {skipped_excel:,}건 제외)"
     return {
         "dry_run": False, "message": message,
         "inserted": inserted, "updated": updated, "deleted": deleted,
@@ -312,15 +323,23 @@ def handle_office_upload(db: Session, rows: list, sync_mode: str, dry_run: bool)
 
 # ── 중개업자 업로드 ──────────────────────────────────────────────────────────
 
-def handle_agent_upload(db: Session, rows: list, sync_mode: str, dry_run: bool):
-    # 1. CSV 파싱
+def handle_agent_upload(db: Session, rows: list, dry_run: bool):
+    # 1. CSV 파싱 (항상 sync 모드)
     parsed: list[tuple[str, str, dict]] = []
     csv_agent_keys: set[tuple[str, str]] = set()
+    skipped_excel = 0
     for row in rows:
         # 국토부 CSV 컬럼명 기준
         name = row.get("중개업자명", "").strip()
         office_reg = row.get("등록번호", "").strip()
         if not name or not office_reg:
+            continue
+        # Excel 과학적 표기법 스킵
+        if re.search(r'[Ee][+\-]\d+', office_reg):
+            skipped_excel += 1
+            continue
+        # 중복 행 스킵
+        if (name, office_reg) in csv_agent_keys:
             continue
         csv_agent_keys.add((name, office_reg))
         # 법정동명에서 시도/시군구 파싱
@@ -379,19 +398,17 @@ def handle_agent_upload(db: Session, rows: list, sync_mode: str, dry_run: bool):
             if changes:
                 to_update_maps.append(update_fields)
                 updated_list.append({"name": name, "office_name": agent.office_name, "changes": changes})
-        elif sync_mode in ["upsert", "sync"]:
+        else:
             if office_reg not in valid_office_regs:
                 skipped += 1
                 continue
             to_insert_maps.append({"name": name, "office_registration_number": office_reg, **new_data})
             inserted_list.append({"name": name, "office_name": new_data.get('office_name', '')})
 
-    # 5. 삭제 대상 계산 (sync 모드)
-    deleted_list: list[dict] = []
-    if sync_mode == "sync":
-        all_db = db.query(AgentCurrent.id, AgentCurrent.name, AgentCurrent.office_registration_number, AgentCurrent.office_name).all()
-        to_delete = [(r[0], r[2], r[3]) for r in all_db if (r[1], r[2]) not in csv_agent_keys]
-        deleted_list = [{"name": r[1], "office_name": r[2]} for r in all_db if (r[1], r[2]) not in csv_agent_keys]
+    # 5. 삭제 대상 계산
+    all_db = db.query(AgentCurrent.id, AgentCurrent.name, AgentCurrent.office_registration_number, AgentCurrent.office_name).all()
+    to_delete = [(r[0], r[2], r[3]) for r in all_db if (r[1], r[2]) not in csv_agent_keys]
+    deleted_list = [{"name": r[1], "office_name": r[2]} for r in all_db if (r[1], r[2]) not in csv_agent_keys]
 
     inserted = len(to_insert_maps)
     updated = len(to_update_maps)
@@ -399,20 +416,23 @@ def handle_agent_upload(db: Session, rows: list, sync_mode: str, dry_run: bool):
 
     # 6. 안전 검사
     safety_warning = _check_delete_safety(db, AgentCurrent, deleted, "중개업자")
+    excel_warning = f"⚠️ Excel 과학적 표기법으로 변환된 등록번호 {skipped_excel:,}건은 처리 불가로 제외됐습니다." if skipped_excel else None
 
     if dry_run:
-        msg = f"미리보기: 신규 {inserted:,}개, 수정 {updated:,}개, 삭제 {deleted:,}개"
+        result = _preview_result("중개업자", inserted, updated, deleted, safety_warning,
+                                 inserted_list, updated_list, deleted_list)
         if skipped:
-            msg += f" (사무소 미등록 {skipped:,}건 제외)"
-        return _preview_result("중개업자", inserted, updated, deleted, safety_warning,
-                               inserted_list, updated_list, deleted_list)
+            result["message"] += f" (사무소 미등록 {skipped:,}건 제외)"
+        if excel_warning:
+            result["excel_warning"] = excel_warning
+        return result
 
     # 7. 실제 적용
     if to_insert_maps:
         db.bulk_insert_mappings(AgentCurrent, to_insert_maps)
     if to_update_maps:
         db.bulk_update_mappings(AgentCurrent, to_update_maps)
-    if sync_mode == "sync" and deleted_list:
+    if deleted_list:
         delete_ids = [r[0] for r in to_delete]
         for i in range(0, len(delete_ids), CHUNK):
             chunk = delete_ids[i:i + CHUNK]
@@ -424,6 +444,8 @@ def handle_agent_upload(db: Session, rows: list, sync_mode: str, dry_run: bool):
     message = f"중개업자 업데이트 완료 — 신규 {inserted:,}개 · 수정 {updated:,}개 · 삭제 {deleted:,}개"
     if skipped:
         message += f" (사무소 미등록 {skipped:,}건 제외)"
+    if skipped_excel:
+        message += f" (Excel 변환 오류 {skipped_excel:,}건 제외)"
     return {
         "dry_run": False, "message": message,
         "inserted": inserted, "updated": updated, "deleted": deleted,
@@ -433,6 +455,25 @@ def handle_agent_upload(db: Session, rows: list, sync_mode: str, dry_run: bool):
 
 
 # ── 헬퍼 ─────────────────────────────────────────────────────────────────────
+
+def _save_daily_sync_result(db: Session, inserted_list: list, updated_list: list, deleted_list: list):
+    today = date.today()
+    existing = db.query(DailySyncResult).filter(DailySyncResult.sync_date == today).first()
+    if existing:
+        db.delete(existing)
+        db.flush()
+    result = DailySyncResult(
+        sync_date=today,
+        inserted=len(inserted_list),
+        updated=len(updated_list),
+        deleted=len(deleted_list),
+        new_list=inserted_list,
+        closed_list=deleted_list,
+        updated_list=updated_list[:200],
+    )
+    db.add(result)
+    db.commit()
+
 
 def _parse_date(date_str: str, fmt: str = "%Y-%m-%d"):
     try:

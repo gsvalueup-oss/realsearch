@@ -1,6 +1,6 @@
 from sqlalchemy import (
     Column, Integer, String, Text, Date, DateTime, Numeric, ForeignKey, Index,
-    func, UniqueConstraint
+    func, UniqueConstraint, JSON
 )
 from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime
@@ -181,6 +181,21 @@ class ChangeLog(Base):
     previous_value = Column(Text)
     current_value = Column(Text)
     description = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class DailySyncResult(Base):
+    """일별 CSV 동기화 결과 (오늘의 변동 페이지용)"""
+    __tablename__ = "daily_sync_results"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sync_date = Column(Date, nullable=False, index=True)
+    inserted = Column(Integer, default=0)
+    updated = Column(Integer, default=0)
+    deleted = Column(Integer, default=0)
+    new_list = Column(JSON)      # [{registration_number, office_name, sido, sigungu}]
+    closed_list = Column(JSON)   # [{registration_number, office_name, sido, sigungu}]
+    updated_list = Column(JSON)  # [{registration_number, office_name, changes}]
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

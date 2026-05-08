@@ -93,7 +93,6 @@ export default function AdminPage() {
   const [message, setMessage] = useState('')
   const [csvFile, setCsvFile] = useState<File | null>(null)
   const [csvType, setCsvType] = useState('office')
-  const [syncMode, setSyncMode] = useState('upsert')
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadPhase, setUploadPhase] = useState<'idle' | 'uploading' | 'processing'>('idle')
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null)
@@ -187,7 +186,7 @@ export default function AdminPage() {
     const base = getBaseURL()
     const formData = new FormData()
     formData.append('file', csvFile)
-    const url = `${base}/api/admin/csv-upload?password=${password}&data_type=${csvType}&sync_mode=${syncMode}&dry_run=true`
+    const url = `${base}/api/admin/csv-upload?password=${password}&data_type=${csvType}&dry_run=true`
 
     try {
       const data = await xhrUpload(url, formData)
@@ -217,7 +216,7 @@ export default function AdminPage() {
     const base = getBaseURL()
     const formData = new FormData()
     formData.append('file', csvFile)
-    const url = `${base}/api/admin/csv-upload?password=${password}&data_type=${csvType}&sync_mode=${syncMode}&dry_run=false`
+    const url = `${base}/api/admin/csv-upload?password=${password}&data_type=${csvType}&dry_run=false`
 
     try {
       const data = await xhrUpload(url, formData)
@@ -414,22 +413,12 @@ export default function AdminPage() {
             {/* Step 1: 파일 선택 */}
             {uploadStep === 'idle' && uploadPhase === 'idle' && (
               <form onSubmit={handlePreview} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 13, color: TEXT_MUTED, marginBottom: 8 }}>데이터 타입</label>
-                    <select value={csvType} onChange={(e) => setCsvType(e.target.value)} style={inputStyle}>
-                      <option value="office">사무소</option>
-                      <option value="agent">중개업자</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 13, color: TEXT_MUTED, marginBottom: 8 }}>동기화 방식</label>
-                    <select value={syncMode} onChange={(e) => setSyncMode(e.target.value)} style={inputStyle}>
-                      <option value="update">기존 데이터만 업데이트</option>
-                      <option value="upsert">새 데이터 추가 + 기존 데이터 업데이트</option>
-                      <option value="sync">완전 동기화 (추가/수정/삭제)</option>
-                    </select>
-                  </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, color: TEXT_MUTED, marginBottom: 8 }}>데이터 타입</label>
+                  <select value={csvType} onChange={(e) => setCsvType(e.target.value)} style={{ ...inputStyle, maxWidth: 240 }}>
+                    <option value="office">사무소</option>
+                    <option value="agent">중개업자</option>
+                  </select>
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 13, color: TEXT_MUTED, marginBottom: 8 }}>CSV 파일</label>
@@ -441,9 +430,7 @@ export default function AdminPage() {
                     disabled={loading}
                   />
                   <p style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 6 }}>
-                    {syncMode === 'update' && '기존 데이터만 업데이트합니다'}
-                    {syncMode === 'upsert' && 'CSV의 새로운 데이터를 추가하고 기존 데이터를 업데이트합니다'}
-                    {syncMode === 'sync' && 'CSV의 데이터로 완전히 동기화합니다 (CSV에 없는 데이터는 삭제됨)'}
+                    국토부 전국 CSV 기준으로 완전 동기화합니다 (CSV에 없는 사무소는 폐업 처리)
                   </p>
                 </div>
                 <button
