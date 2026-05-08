@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     API_PREFIX: str = "/api"
 
     # CORS 설정
-    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8000"
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001,http://localhost:8000"
 
     @property
     def cors_origins_list(self) -> list:

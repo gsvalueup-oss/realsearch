@@ -102,22 +102,32 @@ export default function AdminPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!password) { setMessage('비밀번호를 입력하세요'); return }
+    setLoading(true)
+    setMessage('')
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 10000)
     try {
       const base = getBaseURL()
       const [statsRes, apiStatsRes, userStatsRes] = await Promise.all([
-        fetch(`${base}/api/admin/stats?password=${password}`),
-        fetch(`${base}/api/admin/api-stats?password=${password}`),
-        fetch(`${base}/api/admin/user-stats?password=${password}`),
+        fetch(`${base}/api/admin/stats?password=${password}`, { signal: controller.signal }),
+        fetch(`${base}/api/admin/api-stats?password=${password}`, { signal: controller.signal }),
+        fetch(`${base}/api/admin/user-stats?password=${password}`, { signal: controller.signal }),
       ])
       if (!statsRes.ok) throw new Error('인증 실패')
       setStats(await statsRes.json())
       setApiStats(await apiStatsRes.json())
       setUserStats(await userStatsRes.json())
       setAuthenticated(true)
-      setMessage('인증 성공')
-    } catch {
-      setMessage('비밀번호가 잘못되었습니다')
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        setMessage('서버에 연결할 수 없습니다 (10초 초과)')
+      } else {
+        setMessage('비밀번호가 잘못되었습니다')
+      }
       setPassword('')
+    } finally {
+      clearTimeout(timeout)
+      setLoading(false)
     }
   }
 
@@ -210,6 +220,7 @@ export default function AdminPage() {
               <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: TEXT_MUTED, marginBottom: 8 }}>비밀번호</label>
               <input
                 type="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 style={inputStyle}
@@ -218,9 +229,10 @@ export default function AdminPage() {
             </div>
             <button
               type="submit"
-              style={{ width: '100%', padding: '10px 0', background: ACCENT, color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 15, cursor: 'pointer' }}
+              disabled={loading}
+              style={{ width: '100%', padding: '10px 0', background: loading ? 'rgba(49,130,246,0.5)' : ACCENT, color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer' }}
             >
-              로그인
+              {loading ? '로그인 중...' : '로그인'}
             </button>
           </form>
           {message && (
