@@ -208,19 +208,25 @@ def handle_office_upload(db: Session, rows: list, sync_mode: str, dry_run: bool)
     parsed: list[tuple[str, dict]] = []
     csv_reg_numbers: set[str] = set()
     for row in rows:
-        reg = row.get("사업자등록번호", "").strip()
+        # 국토부 CSV 컬럼명 기준 (등록번호, 사업자상호, ...)
+        reg = row.get("등록번호", "").strip()
         if not reg:
             continue
         csv_reg_numbers.add(reg)
+        # 법정동명에서 시도/시군구 파싱 (예: "서울특별시 강남구 역삼동")
+        legal_dong = row.get("법정동명", "").strip()
+        parts = legal_dong.split()
+        sido = parts[0] if parts else None
+        sigungu = parts[1] if len(parts) > 1 else None
         new_data = {
-            'office_name': row.get("상호명", "").strip(),
-            'representative_name': row.get("대표자명", "").strip() or None,
-            'address': row.get("주소", "").strip() or None,
+            'office_name': row.get("사업자상호", "").strip() or None,
+            'representative_name': row.get("중개업자명", "").strip() or None,
+            'address': row.get("지번주소", "").strip() or None,
             'road_address': row.get("도로명주소", "").strip() or None,
             'phone_number': row.get("전화번호", "").strip() or None,
-            'sido': row.get("시도", "").strip() or None,
-            'sigungu': row.get("시군구", "").strip() or None,
-            'status': row.get("영업상태", "").strip() or None,
+            'sido': sido,
+            'sigungu': sigungu,
+            'status': row.get("상태구분명", "").strip() or None,
         }
         reg_date = _parse_date(row.get("등록일자", ""))
         if reg_date:
@@ -311,26 +317,28 @@ def handle_agent_upload(db: Session, rows: list, sync_mode: str, dry_run: bool):
     parsed: list[tuple[str, str, dict]] = []
     csv_agent_keys: set[tuple[str, str]] = set()
     for row in rows:
-        name = row.get("성명", "").strip()
-        office_reg = row.get("중개사무소등록번호", "").strip()
+        # 국토부 CSV 컬럼명 기준
+        name = row.get("중개업자명", "").strip()
+        office_reg = row.get("등록번호", "").strip()
         if not name or not office_reg:
             continue
         csv_agent_keys.add((name, office_reg))
+        # 법정동명에서 시도/시군구 파싱
+        legal_dong = row.get("법정동명", "").strip()
+        parts = legal_dong.split()
+        sido = parts[0] if parts else None
+        sigungu = parts[1] if len(parts) > 1 else None
         new_data = {
-            'role': row.get("직위", "").strip() or None,
-            'office_name': row.get("중개사무소명", "").strip() or None,
-            'license_number': row.get("중개사자격번호", "").strip() or None,
-            'agent_type': row.get("중개사/보조원구분", "").strip() or None,
-            'status': row.get("상태", "").strip() or None,
-            'sido': row.get("시도", "").strip() or None,
-            'sigungu': row.get("시군구", "").strip() or None,
-            'address': row.get("주소", "").strip() or None,
+            'role': row.get("직위구분명", "").strip() or None,
+            'office_name': row.get("사업자상호", "").strip() or None,
+            'license_number': row.get("자격증번호", "").strip() or None,
+            'agent_type': row.get("중개업자종별명", "").strip() or None,
+            'sido': sido,
+            'sigungu': sigungu,
         }
-        lic_str = row.get("자격취득년도", "").strip()
-        if lic_str:
-            lic_date = _parse_date(f"{lic_str}-01-01") if len(lic_str) == 4 else _parse_date(lic_str)
-            if lic_date:
-                new_data['license_date'] = lic_date
+        lic_date = _parse_date(row.get("자격증취득일", ""))
+        if lic_date:
+            new_data['license_date'] = lic_date
         parsed.append((name, office_reg, new_data))
 
     if not parsed:
