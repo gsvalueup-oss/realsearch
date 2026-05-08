@@ -213,6 +213,9 @@ def handle_office_upload(db: Session, rows: list, dry_run: bool):
         if re.search(r'[Ee][+\-]\d+', reg):
             skipped_excel += 1
             continue
+        if re.search(r'[A-Za-z]', reg):
+            skipped_excel += 1
+            continue
         if reg in csv_reg_numbers:
             continue
         csv_reg_numbers.add(reg)
@@ -336,6 +339,9 @@ def handle_agent_upload(db: Session, rows: list, dry_run: bool):
             continue
         # Excel 과학적 표기법 스킵
         if re.search(r'[Ee][+\-]\d+', office_reg):
+            skipped_excel += 1
+            continue
+        if re.search(r'[A-Za-z]', office_reg):
             skipped_excel += 1
             continue
         # 중복 행 스킵
