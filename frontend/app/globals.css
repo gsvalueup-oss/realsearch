@@ -228,6 +228,16 @@ code {
   background-color: #f9fafc;
 }
 
+/* 푸터 링크 */
+.footer-link {
+  color: rgba(255, 255, 255, 0.5);
+  transition: color 0.2s ease;
+}
+
+.footer-link:hover {
+  color: #3182F6;
+}
+
 /* 로딩 상태 */
 .loading {
   @apply animate-pulse;

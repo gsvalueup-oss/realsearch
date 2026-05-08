@@ -61,15 +61,6 @@ export default function RootLayout({
           {showFooter && <footer className="border-t mt-12 sm:mt-16" style={{ background: '#070B14', borderColor: 'rgba(255, 255, 255, 0.08)' }}>
             <div className="max-w-7xl mx-auto px-4 py-8 sm:py-12">
               <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-8 mb-6 sm:mb-8">
-                <style>{`
-                  .footer-link {
-                    color: rgba(255, 255, 255, 0.5);
-                    transition: color 0.2s ease;
-                  }
-                  .footer-link:hover {
-                    color: #3182F6;
-                  }
-                `}</style>
                 <div>
                   <h3 className="font-bold mb-3 sm:mb-4 text-xs sm:text-sm" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>서비스</h3>
                   <ul className="space-y-1.5 sm:space-y-2 text-xs">
