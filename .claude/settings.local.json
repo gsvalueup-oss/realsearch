@@ -19,7 +19,13 @@
       "WebFetch(domain:flowbite.com)",
       "WebFetch(domain:cruip.com)",
       "PowerShell(Get-ChildItem -Path C:\\\\Users\\\\gsval\\\\realsearch\\\\frontend -Recurse -Name \"types.ts\" -ErrorAction SilentlyContinue | Where-Object { $_ -notmatch \"node_modules\" })",
-      "PowerShell($response = Invoke-WebRequest -Uri \"http://localhost:3003\" -UseBasicParsing -ErrorAction SilentlyContinue; if \\($response.StatusCode -eq 200\\) { Write-Host \"Server running on 3003\" } else { Write-Host \"Server not responding\" })"
+      "PowerShell($response = Invoke-WebRequest -Uri \"http://localhost:3003\" -UseBasicParsing -ErrorAction SilentlyContinue; if \\($response.StatusCode -eq 200\\) { Write-Host \"Server running on 3003\" } else { Write-Host \"Server not responding\" })",
+      "Bash([ -s C:\\\\\\\\Users\\\\\\\\gsval\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\C--Users-gsval-realsearch\\\\\\\\b0af4cf8-e58e-4789-aef8-70cad653bce5\\\\\\\\tasks\\\\\\\\bsyp3vufz.output ])",
+      "Bash(grep -q \"CSV 임포트 완료\" C:\\\\\\\\Users\\\\\\\\gsval\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\C--Users-gsval-realsearch\\\\\\\\b0af4cf8-e58e-4789-aef8-70cad653bce5\\\\\\\\tasks\\\\\\\\bsyp3vufz.output)",
+      "Bash(cat C:\\\\\\\\Users\\\\\\\\gsval\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\C--Users-gsval-realsearch\\\\\\\\b0af4cf8-e58e-4789-aef8-70cad653bce5\\\\\\\\tasks\\\\\\\\bsyp3vufz.output)",
+      "PowerShell(Get-Content *)",
+      "PowerShell(\\(Get-Content \"C:\\\\Users\\\\gsval\\\\realsearch\\\\backend\\\\data\\\\csv\\\\부동산중개업자정보.csv\" | Measure-Object -Line\\).Lines)",
+      "PowerShell(\\(Get-Content \"C:\\\\Users\\\\gsval\\\\realsearch\\\\backend\\\\data\\\\csv\\\\부동산중개업사무소정보.csv\" | Measure-Object -Line\\).Lines)"
     ]
   }
 }

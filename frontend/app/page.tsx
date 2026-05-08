@@ -1,14 +1,41 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Search, Trophy, BarChart3 } from 'lucide-react'
 
 export default function Home() {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const [searchType, setSearchType] = useState('all')
   const [searchError, setSearchError] = useState('')
+  const [stats, setStats] = useState({ totalOffices: 0, totalAgents: 0, regions: 0 })
+  const [statsLoading, setStatsLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+        const statsRes = await fetch(`${baseURL}/api/search/stats`)
+        const statsData = await statsRes.json()
+        const regionsRes = await fetch(`${baseURL}/api/regions`)
+        const regionsData = await regionsRes.json()
+
+        setStats({
+          totalOffices: statsData.total_offices || 0,
+          totalAgents: statsData.total_agents || 0,
+          regions: regionsData.length
+        })
+      } catch (error) {
+        console.error('Failed to fetch stats:', error)
+      } finally {
+        setStatsLoading(false)
+      }
+    }
+
+    fetchStats()
+  }, [])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -23,96 +50,246 @@ export default function Home() {
 
   return (
     <div className="w-full">
-      <section className="w-full px-4 py-12 md:py-24 sm:px-6 lg:px-8">
+      {/* 히어로 섹션 */}
+      <section className="w-full px-4 py-12 sm:py-16 md:py-32 lg:py-40 sm:px-6 lg:px-8" style={{
+        background: 'linear-gradient(135deg, #0A0E1A 0%, #0F1629 100%)'
+      }}>
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              부동산중개업 정보 검색
-            </h2>
-            <p className="text-base sm:text-lg md:text-xl text-gray-600 mb-4">
-              전국 공인중개사무소, 공인중개사를 조회하고 확인해보세요
-            </p>
-            <p className="text-sm text-gray-500">
-              데이터 기준일: {new Date().toLocaleDateString('ko-KR')}
+          {/* 제목 */}
+          <div className="text-center mb-10 sm:mb-12 md:mb-16">
+            <h1 className="text-2xl xs:text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 sm:mb-6 leading-snug sm:leading-tight">
+              전국 공인중개사<br className="sm:hidden" /> 정보를 한눈에
+            </h1>
+            <p className="text-sm sm:text-base md:text-lg lg:text-xl mb-2 px-2 sm:px-0" style={{ color: 'rgba(255, 255, 255, 0.6)', lineHeight: '1.6' }}>
+              내 소중한 재산을 맡기기 전,<br className="sm:hidden" /> 정식 등록된 업체와 사람인지 확인하셨나요?
             </p>
           </div>
 
-          <form onSubmit={handleSearch} className="mb-12">
-            <div className="bg-white rounded-2xl sm:rounded-3xl shadow-md-soft p-4 sm:p-5 md:p-8 border border-gray-50">
-              <div className="mb-6">
+          {/* 검색 폼 */}
+          <form onSubmit={handleSearch} className="mb-10 sm:mb-12 md:mb-16">
+            <style>{`
+              .search-form-card {
+                background: #13192B;
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                transition: all 0.3s ease;
+              }
+              .search-form-card:focus-within {
+                border-color: #3182F6;
+                box-shadow: 0 0 20px rgba(49, 130, 246, 0.2);
+              }
+              .search-input-box {
+                background: #0A0E1A;
+                border: 1px solid rgba(255, 255, 255, 0.08);
+              }
+              .search-input-box:focus-within {
+                border-color: #3182F6;
+              }
+              .search-input {
+                background: transparent;
+                border: none;
+                outline: none;
+                color: white;
+              }
+              .search-input::placeholder {
+                color: rgba(255, 255, 255, 0.4);
+              }
+              .pill-btn {
+                background: rgba(255, 255, 255, 0.08);
+                color: rgba(255, 255, 255, 0.6);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                transition: all 0.2s ease;
+                cursor: pointer;
+              }
+              .pill-btn:hover {
+                background: rgba(255, 255, 255, 0.12);
+              }
+              .pill-btn.active {
+                background: #3182F6;
+                color: white;
+                border-color: #3182F6;
+              }
+              .search-btn {
+                background: #3182F6;
+                color: white;
+                transition: all 0.2s ease;
+                cursor: pointer;
+              }
+              .search-btn:hover {
+                background: #2563EB;
+              }
+              .search-btn:active {
+                background: #1D4ED8;
+              }
+            `}</style>
+            <div className="search-form-card rounded-2xl p-4 sm:p-6 md:p-8">
+              {/* 검색 입력 */}
+              <div className="mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3 search-input-box px-3 sm:px-4 py-2 sm:py-3 rounded-lg">
+                <Search size={18} className="sm:w-5 sm:h-5" style={{ color: 'rgba(255, 255, 255, 0.4)', flexShrink: 0 }} />
                 <input
                   type="text"
-                  placeholder="사무소명, 사람 이름을 입력하세요"
+                  placeholder="사무소명, 이름을 입력하세요"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="search-input text-base sm:text-lg"
+                  className="search-input w-full text-sm sm:text-base"
                   autoFocus
                 />
               </div>
 
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  검색 유형
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {/* 검색 타입 Pill 탭 */}
+              <div className="mb-4 sm:mb-6">
+                <div className="flex gap-2 sm:gap-3 flex-wrap">
                   {[
                     { value: 'all', label: '전체' },
                     { value: 'office', label: '사무소' },
                     { value: 'person', label: '사람' },
                   ].map((type) => (
-                    <label key={type.value} className="min-h-[44px] flex items-center cursor-pointer">
-                      <input
-                        type="radio"
-                        name="searchType"
-                        value={type.value}
-                        checked={searchType === type.value}
-                        onChange={(e) => setSearchType(e.target.value)}
-                        className="mr-2"
-                      />
-                      <span className="text-sm">{type.label}</span>
-                    </label>
+                    <button
+                      key={type.value}
+                      type="button"
+                      onClick={() => setSearchType(type.value)}
+                      className={`pill-btn px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-medium text-xs sm:text-sm whitespace-nowrap ${
+                        searchType === type.value ? 'active' : ''
+                      }`}
+                    >
+                      {type.label}
+                    </button>
                   ))}
                 </div>
               </div>
 
+              {/* 에러 메시지 */}
               {searchError && (
-                <div className="bg-red-50 text-red-700 p-3 rounded-lg mb-6 text-sm font-medium">
-                  ⚠️ {searchError}
+                <div className="mb-4 sm:mb-6 p-2 sm:p-3 rounded-lg text-xs sm:text-sm" style={{
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  color: '#FCA5A5',
+                  border: '1px solid rgba(239, 68, 68, 0.2)'
+                }}>
+                  {searchError}
                 </div>
               )}
 
+              {/* 검색 버튼 */}
               <button
                 type="submit"
-                className="w-full btn btn-primary py-4 text-lg font-bold"
+                className="search-btn w-full py-2.5 sm:py-3 md:py-4 px-4 rounded-lg font-semibold text-sm sm:text-base"
               >
-                🔍 검색하기
+                조회하기
               </button>
             </div>
           </form>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-12">
-            <Link href="/advanced-search" className="card text-center hover:shadow-lg cursor-pointer transform hover:-translate-y-2 transition-all duration-300">
-              <div className="text-5xl mb-4">🔎</div>
-              <h3 className="font-bold text-gray-900 mb-2">세부 검색</h3>
-              <p className="text-sm text-gray-600">조건별 사무소 검색</p>
+          {/* 통계 카드 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+            {/* 사무소 통계 */}
+            <div className="rounded-xl p-4 sm:p-6 border" style={{
+              background: '#13192B',
+              borderColor: 'rgba(255, 255, 255, 0.08)'
+            }}>
+              <div className="flex items-start justify-between mb-3 sm:mb-4">
+                <div className="min-w-0">
+                  <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.75rem sm:text-sm', marginBottom: '0.5rem', lineHeight: '1.4' }}>
+                    등록된 공인중개사사무소
+                  </p>
+                  <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
+                    {statsLoading ? '-' : stats.totalOffices.toLocaleString()}
+                  </div>
+                  <p style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.7rem sm:text-xs', marginTop: '0.5rem' }}>
+                    전국 {stats.regions}개 지역
+                  </p>
+                </div>
+                <span style={{ color: '#3182F6', fontSize: '1.25rem sm:text-2xl', marginLeft: '0.5rem', flexShrink: 0 }}>●</span>
+              </div>
+            </div>
+
+            {/* 중개인 통계 */}
+            <div className="rounded-xl p-4 sm:p-6 border" style={{
+              background: '#13192B',
+              borderColor: 'rgba(255, 255, 255, 0.08)'
+            }}>
+              <div className="flex items-start justify-between mb-3 sm:mb-4">
+                <div className="min-w-0">
+                  <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.75rem sm:text-sm', marginBottom: '0.5rem', lineHeight: '1.4' }}>
+                    등록된 부동산중개업 종사자
+                  </p>
+                  <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
+                    {statsLoading ? '-' : stats.totalAgents.toLocaleString()}
+                  </div>
+                  <p style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.7rem sm:text-xs', marginTop: '0.5rem' }}>
+                    공인중개사·중개인·보조원
+                  </p>
+                </div>
+                <span style={{ color: '#3182F6', fontSize: '1.25rem sm:text-2xl', marginLeft: '0.5rem', flexShrink: 0 }}>●</span>
+              </div>
+            </div>
+
+            {/* 데이터 현황 */}
+            <div className="rounded-xl p-4 sm:p-6 border" style={{
+              background: '#13192B',
+              borderColor: 'rgba(255, 255, 255, 0.08)'
+            }}>
+              <div className="flex items-start justify-between mb-3 sm:mb-4">
+                <div className="min-w-0">
+                  <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.75rem sm:text-sm', marginBottom: '0.5rem', lineHeight: '1.4' }}>
+                    데이터 현황
+                  </p>
+                  <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">100%</div>
+                  <p style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.7rem sm:text-xs', marginTop: '0.5rem' }}>
+                    데이터 기준일: {new Date().toLocaleDateString('ko-KR')}
+                  </p>
+                </div>
+                <span style={{ color: '#3182F6', fontSize: '1.25rem sm:text-2xl', marginLeft: '0.5rem', flexShrink: 0 }}>●</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 기능 섹션 */}
+      <section className="w-full px-4 py-12 sm:py-16 md:py-24 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto">
+          <style>{`
+            .feature-card {
+              background: #13192B;
+              border: 1px solid rgba(255, 255, 255, 0.08);
+              transition: all 0.3s ease;
+            }
+            .feature-card:hover {
+              border-color: #3182F6;
+              box-shadow: 0 0 20px rgba(49, 130, 246, 0.15);
+            }
+          `}</style>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+            {/* 세부 검색 */}
+            <Link href="/advanced-search" className="feature-card rounded-xl p-4 sm:p-6 cursor-pointer">
+              <div className="mb-3 sm:mb-4" style={{ color: '#3182F6' }}>
+                <Search size={28} className="sm:w-8 sm:h-8" />
+              </div>
+              <h3 className="font-bold text-white mb-2 text-base sm:text-lg">세부 검색</h3>
+              <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.8125rem', lineHeight: '1.5' }}>
+                지역, 경력, 직원 등 조건 검색
+              </p>
             </Link>
 
-            <Link href="/rankings" className="card text-center hover:shadow-lg cursor-pointer transform hover:-translate-y-2 transition-all duration-300">
-              <div className="text-5xl mb-4">🏆</div>
-              <h3 className="font-bold text-gray-900 mb-2">랭킹</h3>
-              <p className="text-sm text-gray-600">직원 수, 운영기간 등</p>
+            {/* 랭킹 */}
+            <Link href="/rankings" className="feature-card rounded-xl p-4 sm:p-6 cursor-pointer">
+              <div className="mb-3 sm:mb-4" style={{ color: '#3182F6' }}>
+                <Trophy size={28} className="sm:w-8 sm:h-8" />
+              </div>
+              <h3 className="font-bold text-white mb-2 text-base sm:text-lg">랭킹</h3>
+              <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.8125rem', lineHeight: '1.5' }}>
+                경력, 규모 등 기반 업체 순위
+              </p>
             </Link>
 
-            <Link href="/regions" className="card text-center hover:shadow-lg cursor-pointer transform hover:-translate-y-2 transition-all duration-300">
-              <div className="text-5xl mb-4">📊</div>
-              <h3 className="font-bold text-gray-900 mb-2">지역 통계</h3>
-              <p className="text-sm text-gray-600">시도별, 구별 현황</p>
-            </Link>
-
-            <Link href="#faq" className="card text-center hover:shadow-lg cursor-pointer transform hover:-translate-y-2 transition-all duration-300">
-              <div className="text-5xl mb-4">❓</div>
-              <h3 className="font-bold text-gray-900 mb-2">자주 묻는 질문</h3>
-              <p className="text-sm text-gray-600">도움말 및 가이드</p>
+            {/* 지역 통계 */}
+            <Link href="/regions" className="feature-card rounded-xl p-4 sm:p-6 cursor-pointer">
+              <div className="mb-3 sm:mb-4" style={{ color: '#3182F6' }}>
+                <BarChart3 size={28} className="sm:w-8 sm:h-8" />
+              </div>
+              <h3 className="font-bold text-white mb-2 text-base sm:text-lg">지역 통계</h3>
+              <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.8125rem', lineHeight: '1.5' }}>
+                지역별 부동산중개업 현황 한눈에
+              </p>
             </Link>
           </div>
         </div>

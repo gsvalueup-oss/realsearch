@@ -25,6 +25,18 @@ router = APIRouter(
 )
 
 
+@router.get("/stats")
+async def get_stats(db: Session = Depends(get_db)):
+    """통계 정보 반환"""
+    total_offices = db.query(func.count(OfficeCurrent.id)).scalar() or 0
+    total_agents = db.query(func.count(AgentCurrent.id)).scalar() or 0
+
+    return {
+        "total_offices": total_offices,
+        "total_agents": total_agents,
+    }
+
+
 @router.get("")
 async def search(
     q: str = Query("", description="검색어"),

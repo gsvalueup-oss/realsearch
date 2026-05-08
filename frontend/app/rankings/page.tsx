@@ -9,8 +9,8 @@ type RankingType = 'by-staff' | 'by-age' | 'by-representative-career' | 'newest'
 
 const RANKING_TABS = [
   { value: 'by-staff' as RankingType, label: '직원 수' },
-  { value: 'by-age' as RankingType, label: '운영 기간' },
   { value: 'by-representative-career' as RankingType, label: '대표자 경력' },
+  { value: 'by-age' as RankingType, label: '운영 기간' },
   { value: 'newest' as RankingType, label: '신규 개업' },
 ]
 
@@ -70,7 +70,35 @@ export default function RankingsPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-8">
+      <style>{`
+        .dark-select {
+          background: #13192B;
+          color: white;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .dark-select:focus {
+          border-color: #3182F6;
+          outline: none;
+        }
+        .dark-select option {
+          background: #1a2236;
+          color: white;
+        }
+        .ranking-tab {
+          border-bottom: 2px solid transparent;
+          color: rgba(255, 255, 255, 0.6);
+          transition: all 0.2s;
+        }
+        .ranking-tab.active {
+          border-bottom-color: #3182F6;
+          color: #3182F6;
+        }
+        .ranking-tab:hover {
+          color: rgba(255, 255, 255, 0.8);
+        }
+      `}</style>
+
+      <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-8">
         {activeTab === 'by-staff' && '직원 수 Top 50'}
         {activeTab === 'by-age' && '운영 기간 Top 50'}
         {activeTab === 'by-representative-career' && '대표자 경력 Top 50'}
@@ -78,15 +106,13 @@ export default function RankingsPage() {
       </h1>
 
       {/* 탭 네비게이션 */}
-      <div className="flex border-b border-gray-200 mb-6 overflow-x-auto">
+      <div className="flex border-b mb-6 overflow-x-auto" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
         {RANKING_TABS.map((tab) => (
           <button
             key={tab.value}
             onClick={() => setActiveTab(tab.value)}
-            className={`px-4 sm:px-6 py-3 font-medium text-sm border-b-2 whitespace-nowrap transition min-h-[44px] flex items-center ${
-              activeTab === tab.value
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
+            className={`ranking-tab px-4 sm:px-6 py-3 font-medium text-sm whitespace-nowrap min-h-[44px] flex items-center ${
+              activeTab === tab.value ? 'active' : ''
             }`}
           >
             {tab.label}
@@ -95,16 +121,19 @@ export default function RankingsPage() {
       </div>
 
       {/* 필터 */}
-      <div className="card mb-6">
+      <div className="rounded-xl p-6 mb-6 border" style={{
+        background: '#13192B',
+        borderColor: 'rgba(255, 255, 255, 0.08)'
+      }}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium mb-2" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
               시도
             </label>
             <select
               value={sido}
               onChange={(e) => setSido(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+              className="dark-select w-full px-3 py-2 rounded-lg"
             >
               <option value="">전국</option>
               {sidoList.map((sido_name) => (
@@ -115,14 +144,14 @@ export default function RankingsPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium mb-2" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
               시군구
             </label>
             <select
               value={sigungu}
               onChange={(e) => setSigungu(e.target.value)}
               disabled={!sido}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent disabled:bg-gray-50"
+              className="dark-select w-full px-3 py-2 rounded-lg disabled:opacity-50"
             >
               <option value="">전체</option>
               {sigunguList.map((sigungu_name) => (
@@ -135,14 +164,17 @@ export default function RankingsPage() {
         </div>
       </div>
 
-      {/* 결과 테이블 */}
+      {/* 결과 */}
       {loading ? (
         <div className="text-center py-12">
-          <p className="text-gray-500">로딩 중...</p>
+          <p style={{ color: 'rgba(255, 255, 255, 0.6)' }}>로딩 중...</p>
         </div>
       ) : items.length === 0 ? (
-        <div className="bg-gray-50 p-8 rounded-lg text-center">
-          <p className="text-gray-500">결과가 없습니다</p>
+        <div className="p-8 rounded-lg text-center" style={{
+          background: 'rgba(255, 255, 255, 0.05)',
+          border: '1px solid rgba(255, 255, 255, 0.08)'
+        }}>
+          <p style={{ color: 'rgba(255, 255, 255, 0.6)' }}>결과가 없습니다</p>
         </div>
       ) : (
         <>
@@ -153,16 +185,19 @@ export default function RankingsPage() {
                 key={`${item.registration_number}-${item.rank}`}
                 href={`/office/${encodeURIComponent(item.registration_number)}`}
               >
-                <div className="card hover:shadow-lg transition">
+                <div className="rounded-lg p-4 border" style={{
+                  background: '#13192B',
+                  borderColor: 'rgba(255, 255, 255, 0.08)'
+                }}>
                   <div className="flex items-start gap-3 mb-3">
-                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-800 font-semibold text-sm flex-shrink-0">
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full text-white font-semibold text-sm flex-shrink-0" style={{ background: '#3182F6' }}>
                       {item.rank}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-bold text-gray-900 break-words">
+                      <h3 className="font-bold text-white break-words">
                         {item.office_name}
                       </h3>
-                      <p className="text-xs text-gray-600 line-clamp-1">
+                      <p className="text-xs line-clamp-1" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
                         {item.sido} {item.sigungu}
                       </p>
                     </div>
@@ -172,16 +207,16 @@ export default function RankingsPage() {
                     {activeTab === 'by-representative-career' ? (
                       <>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">자격취득년도</span>
-                          <span className="font-semibold text-gray-900">
+                          <span style={{ color: 'rgba(255, 255, 255, 0.6)' }}>자격취득년도</span>
+                          <span className="font-semibold text-white">
                             {item.representative_license_year ? item.representative_license_year : '-'}
                           </span>
                         </div>
                       </>
                     ) : (
                       <div className="flex justify-between">
-                        <span className="text-gray-600">{RANKING_TABS.find((t) => t.value === activeTab)?.label}</span>
-                        <span className="font-semibold text-gray-900">
+                        <span style={{ color: 'rgba(255, 255, 255, 0.6)' }}>{RANKING_TABS.find((t) => t.value === activeTab)?.label}</span>
+                        <span className="font-semibold text-white">
                           {item.value_label === '일'
                             ? (() => {
                                 const years = Math.floor(item.value / 365)
@@ -193,25 +228,24 @@ export default function RankingsPage() {
                       </div>
                     )}
                     <div className="flex justify-between">
-                      <span className="text-gray-600">{activeTab === 'by-representative-career' ? '경력(년)' : '대표자 경력'}</span>
+                      <span style={{ color: 'rgba(255, 255, 255, 0.6)' }}>{activeTab === 'by-representative-career' ? '경력(년)' : '대표자 경력'}</span>
                       <span>
                         {item.representative_experience ? (
-                          <span className="font-semibold text-blue-700">{item.representative_experience}년</span>
+                          <span className="font-semibold" style={{ color: '#3182F6' }}>{item.representative_experience}년</span>
                         ) : item.representative_name ? (
-                          <span className="text-orange-600 font-medium text-xs">자격증 미보유 / 경력확인불가</span>
+                          <span className="font-medium text-xs" style={{ color: '#FF9D4A' }}>자격증 미보유 / 경력확인불가</span>
                         ) : (
-                          <span className="text-gray-500 text-xs">대표자 정보 없음</span>
+                          <span className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>대표자 정보 없음</span>
                         )}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center pt-2 border-t border-gray-100">
-                      <span className="text-gray-600">상태</span>
+                    <div className="flex justify-between items-center pt-2" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                      <span style={{ color: 'rgba(255, 255, 255, 0.6)' }}>상태</span>
                       <span
-                        className={`px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${
-                          item.status === '영업중'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-600 text-white'
-                        }`}
+                        className="px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap text-white"
+                        style={{
+                          background: item.status === '영업중' ? '#3182F6' : 'rgba(255, 255, 255, 0.2)'
+                        }}
                       >
                         {item.status}
                       </span>
@@ -223,39 +257,45 @@ export default function RankingsPage() {
           </div>
 
           {/* 데스크탑 테이블 */}
-          <div className="hidden md:block card overflow-hidden">
+          <div className="hidden md:block rounded-xl overflow-hidden border" style={{
+            background: '#13192B',
+            borderColor: 'rgba(255, 255, 255, 0.08)'
+          }}>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead style={{ background: 'rgba(255, 255, 255, 0.05)', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
                   <tr>
-                    <th className="px-3 sm:px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                    <th className="px-3 sm:px-6 py-3 text-left text-sm font-semibold text-white">
                       순위
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                    <th className="px-3 sm:px-6 py-3 text-left text-sm font-semibold text-white">
                       사무소명
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                    <th className="px-3 sm:px-6 py-3 text-left text-sm font-semibold text-white">
                       지역
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-center text-sm font-semibold text-gray-900">
+                    <th className="px-3 sm:px-6 py-3 text-center text-sm font-semibold text-white">
                       {activeTab === 'by-representative-career' ? '자격취득년도' : RANKING_TABS.find((t) => t.value === activeTab)?.label}
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-center text-sm font-semibold text-gray-900">
+                    <th className="px-3 sm:px-6 py-3 text-center text-sm font-semibold text-white">
                       {activeTab === 'by-representative-career' ? '경력(년)' : '대표자 경력'}
                     </th>
-                    <th className="px-3 sm:px-6 py-3 text-center text-sm font-semibold text-gray-900">
+                    <th className="px-3 sm:px-6 py-3 text-center text-sm font-semibold text-white">
                       상태
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {items.map((item) => (
+                <tbody style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                  {items.map((item, idx) => (
                     <tr
                       key={`${item.registration_number}-${item.rank}`}
-                      className="hover:bg-gray-50"
+                      style={{
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                        background: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.02)'
+                      }}
                     >
                       <td className="px-3 sm:px-6 py-4">
-                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-800 font-semibold text-sm">
+                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full text-white font-semibold text-sm" style={{ background: '#3182F6' }}>
                           {item.rank}
                         </span>
                       </td>
@@ -264,22 +304,23 @@ export default function RankingsPage() {
                           href={`/office/${encodeURIComponent(
                             item.registration_number
                           )}`}
-                          className="font-semibold text-gray-900 hover:text-blue-600"
+                          className="font-semibold hover:opacity-80 transition"
+                          style={{ color: '#3182F6' }}
                         >
                           {item.office_name}
                         </Link>
                       </td>
-                      <td className="px-3 sm:px-6 py-4 text-sm text-gray-600">
+                      <td className="px-3 sm:px-6 py-4 text-sm" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
                         {item.sido} {item.sigungu}
                       </td>
                       <td className="px-3 sm:px-6 py-4 text-center">
                         {activeTab === 'by-representative-career' ? (
-                          <span className="font-semibold text-gray-900">
+                          <span className="font-semibold text-white">
                             {item.representative_license_year ? item.representative_license_year : '-'}
                           </span>
                         ) : (
                           <>
-                            <span className="font-semibold text-gray-900">
+                            <span className="font-semibold text-white">
                               {item.value_label === '일'
                                 ? (() => {
                                     const years = Math.floor(item.value / 365)
@@ -288,7 +329,7 @@ export default function RankingsPage() {
                                   })()
                                 : item.value}
                             </span>
-                            <span className="text-sm text-gray-600 ml-1">
+                            <span className="text-sm ml-1" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
                               {item.value_label === '일' ? '' : item.value_label}
                             </span>
                           </>
@@ -296,22 +337,21 @@ export default function RankingsPage() {
                       </td>
                       <td className="px-3 sm:px-6 py-4 text-center">
                         {item.representative_experience ? (
-                          <span className="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
+                          <span className="inline-block px-3 py-1 rounded-full text-sm font-semibold text-white" style={{ background: 'rgba(49, 130, 246, 0.2)' }}>
                             {item.representative_experience}년
                           </span>
                         ) : item.representative_name ? (
-                          <span className="text-orange-600 text-sm font-medium">자격증 미보유 / 경력확인불가</span>
+                          <span className="text-sm font-medium" style={{ color: '#FF9D4A' }}>자격증 미보유 / 경력확인불가</span>
                         ) : (
-                          <span className="text-gray-500 text-sm">대표자 정보 없음</span>
+                          <span className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>대표자 정보 없음</span>
                         )}
                       </td>
                       <td className="px-3 sm:px-6 py-4 text-center">
                         <span
-                          className={`px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${
-                            item.status === '영업중'
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-600 text-white'
-                          }`}
+                          className="px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap text-white"
+                          style={{
+                            background: item.status === '영업중' ? '#3182F6' : 'rgba(255, 255, 255, 0.2)'
+                          }}
                         >
                           {item.status}
                         </span>

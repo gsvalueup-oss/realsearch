@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { OfficeSummary, AgentSummary } from '@/types'
+import { Search, ChevronLeft, ChevronRight } from 'lucide-react'
 
 const SIDO_LIST = [
   '서울특별시', '경기도', '부산광역시', '대구광역시', '인천광역시',
@@ -31,7 +32,6 @@ const SIGUNGU_MAP: Record<string, string[]> = {
   '경상남도': ['거제시', '거창군', '고성군', '김해시', '남해군', '밀양시', '사천시', '산청군', '양산시', '의령군', '진주시', '창녕군', '창원시', '통영시', '하동군', '함안군', '함양군', '합천군'],
   '제주특별자치도': ['서귀포시', '제주시'],
 }
-
 
 function SearchContent() {
   const searchParams = useSearchParams()
@@ -76,11 +76,7 @@ function SearchContent() {
       setError(null)
 
       try {
-        const baseURL = typeof window !== 'undefined'
-          ? (window.location.hostname === 'localhost'
-            ? 'http://localhost:8000'
-            : 'https://realsearch-production-882c.up.railway.app')
-          : 'https://realsearch-production-882c.up.railway.app'
+        const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
         const params = new URLSearchParams({
           q,
           type,
@@ -88,8 +84,13 @@ function SearchContent() {
           sigungu,
           limit: '50'
         })
-        const response = await fetch(`${baseURL}/api/search?${params}`)
+        const url = `${baseURL}/api/search?${params}`
+        console.log('Search URL:', url)
+        const response = await fetch(url)
         const data = await response.json()
+
+        console.log('Search response:', data)
+        console.log('Agents count:', data.agents?.length || 0)
 
         setOffices(data.offices || [])
         setAgents(data.agents || [])
@@ -142,41 +143,97 @@ function SearchContent() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <style>{`
+        .search-select {
+          background: #13192B;
+          color: white;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 8px;
+          padding: 10px 12px;
+          font-size: 0.875rem;
+        }
+        .search-select:focus {
+          outline: none;
+          border-color: #3182F6;
+          box-shadow: 0 0 0 2px rgba(49, 130, 246, 0.1);
+        }
+        .search-select:disabled {
+          opacity: 0.5;
+        }
+        .search-select option {
+          background: #13192B;
+          color: white;
+        }
+        .tab-button {
+          color: rgba(255, 255, 255, 0.6);
+          border-bottom: 2px solid transparent;
+          transition: all 0.2s;
+          padding: 12px 16px;
+          font-weight: 500;
+        }
+        .tab-button.active {
+          color: #3182F6;
+          border-bottom-color: #3182F6;
+        }
+        .tab-button:hover {
+          color: rgba(255, 255, 255, 0.8);
+        }
+        .result-card {
+          background: #13192B;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 12px;
+          padding: 16px;
+          transition: all 0.3s;
+        }
+        .result-card:hover {
+          border-color: #3182F6;
+          box-shadow: 0 0 20px rgba(49, 130, 246, 0.15);
+        }
+      `}</style>
+
       {/* 새 검색 폼 */}
-      <form onSubmit={handleNewSearch} className="card shadow-md-soft mb-6">
-        <div className="relative">
+      <form onSubmit={handleNewSearch} className="rounded-xl p-6 mb-8 border" style={{
+        background: '#13192B',
+        borderColor: 'rgba(255, 255, 255, 0.08)'
+      }}>
+        <div className="relative flex items-center gap-3" style={{
+          background: '#0A0E1A',
+          padding: '12px 16px',
+          borderRadius: '8px',
+          border: '1px solid rgba(255, 255, 255, 0.08)'
+        }}>
+          <Search size={20} style={{ color: 'rgba(255, 255, 255, 0.4)' }} />
           <input
             type="text"
-            placeholder="다른 이름으로 검색해보세요"
+            placeholder="사무소명, 이름을 입력하세요"
             value={newSearchQuery}
             onChange={(e) => setNewSearchQuery(e.target.value)}
-            className="search-input w-full"
+            className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-600 text-base"
           />
           <button
             type="submit"
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-brand-600 hover:text-brand-700 font-bold text-lg"
+            className="flex-shrink-0 font-bold transition"
+            style={{ color: '#3182F6' }}
           >
-            🔍
+            조회
           </button>
         </div>
       </form>
 
       {/* 지역 필터 */}
-      <div className="card mb-6">
-        <div className="mb-4">
-          <p className="text-gray-600 text-sm">
-            검색어: <span className="font-semibold">{q}</span> <span className="text-blue-600">(사무소 {offices.length}개, 사람 {agents.length}명)</span>
-          </p>
-        </div>
+      <div className="rounded-xl p-6 mb-8 border" style={{
+        background: '#13192B',
+        borderColor: 'rgba(255, 255, 255, 0.08)'
+      }}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block font-medium mb-2" style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.875rem' }}>
               시도
             </label>
             <select
               value={filterSido}
               onChange={(e) => handleFilterChange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+              className="search-select w-full"
             >
               <option value="">전체 지역</option>
               {SIDO_LIST.map((sido_name) => (
@@ -188,14 +245,14 @@ function SearchContent() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block font-medium mb-2" style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.875rem' }}>
               시군구
             </label>
             <select
               value={filterSigungu}
               onChange={(e) => handleFilterChange(filterSido, e.target.value)}
               disabled={!filterSido}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent disabled:bg-gray-50"
+              className="search-select w-full"
             >
               <option value="">전체</option>
               {sigunguList.map((sg) => (
@@ -208,30 +265,43 @@ function SearchContent() {
         </div>
       </div>
 
+      {/* 검색결과 정보 */}
+      <div className="rounded-xl p-4 mb-8 border" style={{
+        background: '#13192B',
+        borderColor: 'rgba(255, 255, 255, 0.08)'
+      }}>
+        <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.875rem' }}>
+          검색결과: <span className="font-semibold text-white">{q}</span> <span style={{ color: '#3182F6' }}>(사무소 {offices.length}개, 사람 {agents.length}명)</span>
+        </p>
+      </div>
+
       {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6">{error}</div>
+        <div className="rounded-lg p-4 mb-6 border" style={{
+          background: 'rgba(239, 68, 68, 0.1)',
+          borderColor: 'rgba(239, 68, 68, 0.2)',
+          color: '#FCA5A5'
+        }}>{error}</div>
       )}
 
       {loading ? (
         <div className="text-center py-12">
-          <p className="text-gray-500">검색 중...</p>
+          <p style={{ color: 'rgba(255, 255, 255, 0.6)' }}>검색 중...</p>
         </div>
       ) : total === 0 ? (
-        <div className="bg-gray-50 p-8 rounded-lg text-center">
-          <p className="text-gray-500">검색 결과가 없습니다.</p>
+        <div className="rounded-lg p-8 text-center border" style={{
+          background: 'rgba(255, 255, 255, 0.05)',
+          borderColor: 'rgba(255, 255, 255, 0.08)'
+        }}>
+          <p style={{ color: 'rgba(255, 255, 255, 0.5)' }}>검색 결과가 없습니다.</p>
         </div>
       ) : (
         <>
-          <div className="flex border-b border-gray-200 mb-6 overflow-x-auto">
+          <div className="flex border-b mb-6 overflow-x-auto" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
             {['all', 'office', 'person'].map((t) => (
               <button
                 key={t}
                 onClick={() => setActiveTab(t as any)}
-                className={`px-6 py-3 font-medium text-sm border-b-2 transition min-h-[44px] whitespace-nowrap ${
-                  activeTab === t
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600'
-                }`}
+                className={`tab-button ${activeTab === t ? 'active' : ''}`}
               >
                 {t === 'all' ? '전체' : t === 'office' ? '사무소' : '사람'}
               </button>
@@ -242,63 +312,61 @@ function SearchContent() {
             <div className="mb-8">
               {filteredOffices.length === 0 ? (
                 activeTab === 'office' && (
-                  <div className="bg-gray-50 p-8 rounded-lg text-center">
-                    <p className="text-gray-500">검색 결과가 없습니다.</p>
+                  <div className="rounded-lg p-8 text-center border" style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    borderColor: 'rgba(255, 255, 255, 0.08)'
+                  }}>
+                    <p style={{ color: 'rgba(255, 255, 255, 0.5)' }}>검색 결과가 없습니다.</p>
                   </div>
                 )
               ) : (
-                <div className="space-y-4">
-                {filteredOffices.map((office) => (
-                  <Link
-                    key={office.registration_number}
-                    href={`/office/${encodeURIComponent(
-                      office.registration_number
-                    )}`}
-                  >
-                    <div className="card hover:shadow-lg cursor-pointer">
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between mb-2 gap-2 flex-wrap">
-                            <h3 className="font-bold text-base sm:text-lg text-gray-900 min-w-0">
-                              {office.office_name}
-                            </h3>
-                            <span
-                              className={`px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap flex-shrink-0 ${
-                                office.status === '영업중'
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-gray-600 text-white'
-                              }`}
-                            >
-                              {office.status}
-                            </span>
-                          </div>
-                          <div className="text-xs sm:text-sm text-gray-600 space-y-1 mb-3">
-                            <p>등록번호: {office.registration_number}</p>
-                            <p>대표: {office.representative_name || '-'}</p>
-                            <p>주소: {office.address || '-'}</p>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {office.staff_count !== null && (
-                              <span className="badge badge-info">
-                                직원수: {office.staff_count}명
+                <div className="space-y-3">
+                  {filteredOffices.map((office) => (
+                    <Link
+                      key={office.registration_number}
+                      href={`/office/${encodeURIComponent(office.registration_number)}`}
+                    >
+                      <div className="result-card">
+                        <div className="flex justify-between items-start gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between mb-3 gap-2 flex-wrap">
+                              <h3 className="font-bold text-base sm:text-lg text-white min-w-0">
+                                {office.office_name}
+                              </h3>
+                              <span className="px-3 py-1 text-xs font-semibold rounded-full flex-shrink-0 text-white" style={{
+                                background: office.status === '영업중' ? '#3182F6' : '#666'
+                              }}>
+                                {office.status}
                               </span>
-                            )}
-                            {office.representative_experience !== null && (
-                              <span className="badge badge-info">
-                                대표 경력: {office.representative_experience}년
-                              </span>
-                            )}
-                            {office.representative_experience === null && office.representative_name && (
-                              <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded bg-orange-50 text-orange-700 border border-orange-200 whitespace-nowrap">
-                                대표자 자격증 미보유
-                              </span>
-                            )}
+                            </div>
+                            <div style={{ color: 'rgba(255, 255, 255, 0.6)' }} className="space-y-1 mb-3 text-sm">
+                              <p>등록번호: {office.registration_number}</p>
+                              <p>대표: {office.representative_name || '-'}</p>
+                              <p>주소: {office.address || '-'}</p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {office.staff_count !== null && (
+                                <span className="px-3 py-1 text-xs rounded" style={{
+                                  background: 'rgba(49, 130, 246, 0.1)',
+                                  color: '#93C5FD'
+                                }}>
+                                  직원수: {office.staff_count}명
+                                </span>
+                              )}
+                              {office.representative_experience !== null && (
+                                <span className="px-3 py-1 text-xs rounded" style={{
+                                  background: 'rgba(49, 130, 246, 0.1)',
+                                  color: '#93C5FD'
+                                }}>
+                                  대표 경력: {office.representative_experience}년
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  ))}
                 </div>
               )}
             </div>
@@ -308,51 +376,51 @@ function SearchContent() {
             <div className="mb-8">
               {filteredAgents.length === 0 ? (
                 activeTab === 'person' && (
-                  <div className="bg-gray-50 p-8 rounded-lg text-center">
-                    <p className="text-gray-500">검색 결과가 없습니다.</p>
+                  <div className="rounded-lg p-8 text-center border" style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    borderColor: 'rgba(255, 255, 255, 0.08)'
+                  }}>
+                    <p style={{ color: 'rgba(255, 255, 255, 0.5)' }}>검색 결과가 없습니다.</p>
                   </div>
                 )
               ) : (
-                <div className="space-y-4">
-                {filteredAgents.map((agent) => (
-                  <Link key={agent.id} href={`/agent/${agent.id}`}>
-                    <div className="card hover:shadow-lg cursor-pointer">
-                      <div className="flex justify-between items-start gap-2 flex-wrap">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-2 mb-3">
-                            <h3 className="font-bold text-base sm:text-lg text-gray-900 min-w-0">
-                              {agent.name}
-                            </h3>
-                            <span className="px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-800 whitespace-nowrap">
-                              {agent.role === '대표' ? '대표자' : agent.role ? '소속직원' : '-'}
-                            </span>
+                <div className="space-y-3">
+                  {filteredAgents.map((agent) => (
+                    <Link key={agent.id} href={`/agent/${agent.id}`}>
+                      <div className="result-card">
+                        <div className="flex justify-between items-start gap-2 flex-wrap">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-3">
+                              <h3 className="font-bold text-base sm:text-lg text-white min-w-0">
+                                {agent.name}
+                              </h3>
+                              <span className="px-3 py-1 text-xs font-semibold rounded-full text-white" style={{
+                                background: '#3182F6'
+                              }}>
+                                {agent.role === '대표' ? '대표자' : agent.role ? '소속직원' : '-'}
+                              </span>
+                            </div>
+                            <div style={{ color: 'rgba(255, 255, 255, 0.6)' }} className="space-y-1 text-sm">
+                              <p>구분: {agent.agent_type || '-'}</p>
+                              <p>사무소: {agent.office_name || '-'}</p>
+                              <p>주소: {agent.address || '-'}</p>
+                              {agent.license_date && (
+                                <p>자격취득: {new Date(agent.license_date).toLocaleDateString('ko-KR')}</p>
+                              )}
+                              {agent.experience !== null && (
+                                <p>경력: {agent.experience}년</p>
+                              )}
+                            </div>
                           </div>
-                          <div className="text-xs sm:text-sm text-gray-600 space-y-1">
-                            <p>구분: {agent.agent_type || '-'}</p>
-                            <p>사무소: {agent.office_name || '-'}</p>
-                            <p>주소: {agent.address || '-'}</p>
-                            {agent.license_date && (
-                              <p>자격취득: {new Date(agent.license_date).toLocaleDateString('ko-KR')}</p>
-                            )}
-                            {agent.experience !== null && (
-                              <p>경력: {agent.experience}년</p>
-                            )}
-                          </div>
+                          <span className="px-3 py-1 text-xs font-semibold rounded-full flex-shrink-0 text-white" style={{
+                            background: agent.agent_type === '공인중개사' ? '#3182F6' : '#666'
+                          }}>
+                            {agent.agent_type}
+                          </span>
                         </div>
-                        <span className={`px-3 py-1 text-xs font-semibold rounded flex items-center gap-1 flex-shrink-0 ${
-                          agent.agent_type === '공인중개사'
-                            ? 'bg-blue-600 text-white'
-                            : agent.agent_type === '중개보조원'
-                            ? 'bg-cyan-600 text-white'
-                            : 'bg-gray-600 text-white'
-                        }`}>
-                          {agent.agent_type === '공인중개사' && <span>✓</span>}
-                          {agent.agent_type}
-                        </span>
                       </div>
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  ))}
                 </div>
               )}
             </div>
@@ -363,9 +431,14 @@ function SearchContent() {
               {page > 1 && (
                 <button
                   onClick={() => setPage(page - 1)}
-                  className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 whitespace-nowrap"
+                  className="px-3 py-2 rounded border transition hover:opacity-80"
+                  style={{
+                    background: '#13192B',
+                    borderColor: 'rgba(255, 255, 255, 0.08)',
+                    color: 'rgba(255, 255, 255, 0.7)'
+                  }}
                 >
-                  이전
+                  <ChevronLeft size={18} />
                 </button>
               )}
               {(() => {
@@ -381,11 +454,12 @@ function SearchContent() {
                     <button
                       key={pageNum}
                       onClick={() => setPage(pageNum)}
-                      className={`px-4 py-2 rounded min-h-[44px] ${
-                        page === pageNum
-                          ? 'bg-blue-600 text-white'
-                          : 'border border-gray-300 hover:bg-gray-50'
-                      }`}
+                      className="px-4 py-2 rounded min-h-[44px] transition border"
+                      style={{
+                        background: page === pageNum ? '#3182F6' : '#13192B',
+                        borderColor: 'rgba(255, 255, 255, 0.08)',
+                        color: page === pageNum ? 'white' : 'rgba(255, 255, 255, 0.7)'
+                      }}
                     >
                       {pageNum}
                     </button>
@@ -395,9 +469,14 @@ function SearchContent() {
               {page < totalPages && (
                 <button
                   onClick={() => setPage(page + 1)}
-                  className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 whitespace-nowrap"
+                  className="px-3 py-2 rounded border transition hover:opacity-80"
+                  style={{
+                    background: '#13192B',
+                    borderColor: 'rgba(255, 255, 255, 0.08)',
+                    color: 'rgba(255, 255, 255, 0.7)'
+                  }}
                 >
-                  다음
+                  <ChevronRight size={18} />
                 </button>
               )}
             </div>
@@ -410,7 +489,7 @@ function SearchContent() {
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={<div className="text-center py-12">로딩 중...</div>}>
+    <Suspense fallback={<div className="text-center py-12" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>로딩 중...</div>}>
       <SearchContent />
     </Suspense>
   )

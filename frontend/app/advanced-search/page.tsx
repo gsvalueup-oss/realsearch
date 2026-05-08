@@ -116,19 +116,38 @@ export default function AdvancedSearchPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <style>{`
+        .dark-select {
+          background: #13192B;
+          color: white;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .dark-select:focus {
+          border-color: #3182F6;
+          outline: none;
+        }
+        .dark-select option {
+          background: #1a2236;
+          color: white;
+        }
+      `}</style>
+
       {/* 검색 필터 */}
-      <div className="card shadow-md-soft mb-8">
-        <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-6">세부검색 조건</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6 mb-6">
+      <div className="rounded-xl p-6 mb-8 border" style={{
+        background: '#13192B',
+        borderColor: 'rgba(255, 255, 255, 0.08)'
+      }}>
+        <h2 className="text-lg sm:text-xl font-bold text-white mb-6">세부검색 조건</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6">
           {/* 시도 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium mb-2" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
               시도
             </label>
             <select
               value={sido}
               onChange={(e) => handleSidoChange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              className="dark-select w-full px-3 py-2 rounded-lg"
             >
               <option value="">전체</option>
               {SIDO_LIST.map((s) => (
@@ -141,14 +160,14 @@ export default function AdvancedSearchPage() {
 
           {/* 시군구 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium mb-2" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
               시군구
             </label>
             <select
               value={sigungu}
               onChange={(e) => setSigungu(e.target.value)}
               disabled={!sido}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent disabled:bg-gray-50"
+              className="dark-select w-full px-3 py-2 rounded-lg disabled:opacity-50"
             >
               <option value="">전체</option>
               {sigunguList.map((sg) => (
@@ -161,10 +180,10 @@ export default function AdvancedSearchPage() {
 
           {/* 대표자 경력 (년) */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium mb-3" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
               대표자 경력
             </label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex gap-1 overflow-x-auto pb-2">
               {[
                 { label: '전체', value: 0 },
                 { label: '5년 ↑', value: 5 },
@@ -175,11 +194,12 @@ export default function AdvancedSearchPage() {
                 <button
                   key={option.value}
                   onClick={() => setMinExperience(option.value)}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${
-                    minExperience === option.value
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                  className="px-2 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition flex-shrink-0"
+                  style={{
+                    background: minExperience === option.value ? '#3182F6' : 'rgba(255, 255, 255, 0.1)',
+                    color: minExperience === option.value ? 'white' : 'rgba(255, 255, 255, 0.7)',
+                    border: `1px solid ${minExperience === option.value ? '#3182F6' : 'rgba(255, 255, 255, 0.08)'}`
+                  }}
                 >
                   {option.label}
                 </button>
@@ -189,10 +209,10 @@ export default function AdvancedSearchPage() {
 
           {/* 직원 수 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium mb-3" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
               직원 수
             </label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex gap-1 overflow-x-auto pb-2">
               {[
                 { label: '전체', value: 0 },
                 { label: '5명 ↑', value: 5 },
@@ -203,11 +223,12 @@ export default function AdvancedSearchPage() {
                 <button
                   key={option.value}
                   onClick={() => setMinStaff(option.value)}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${
-                    minStaff === option.value
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                  className="px-2 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition flex-shrink-0"
+                  style={{
+                    background: minStaff === option.value ? '#3182F6' : 'rgba(255, 255, 255, 0.1)',
+                    color: minStaff === option.value ? 'white' : 'rgba(255, 255, 255, 0.7)',
+                    border: `1px solid ${minStaff === option.value ? '#3182F6' : 'rgba(255, 255, 255, 0.08)'}`
+                  }}
                 >
                   {option.label}
                 </button>
@@ -217,20 +238,31 @@ export default function AdvancedSearchPage() {
 
           {/* 영업상태 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium mb-3" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
               영업상태
             </label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-            >
-              <option value="">전체</option>
-              <option value="영업중">영업중</option>
-              <option value="휴업">휴업</option>
-              <option value="폐업">폐업</option>
-              <option value="업무정지">업무정지</option>
-            </select>
+            <div className="flex gap-1 overflow-x-auto pb-2">
+              {[
+                { label: '전체', value: '' },
+                { label: '영업중', value: '영업중' },
+                { label: '휴업', value: '휴업' },
+                { label: '폐업', value: '폐업' },
+                { label: '업무정지', value: '업무정지' },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setStatus(option.value)}
+                  className="px-2 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition flex-shrink-0"
+                  style={{
+                    background: status === option.value ? '#3182F6' : 'rgba(255, 255, 255, 0.1)',
+                    color: status === option.value ? 'white' : 'rgba(255, 255, 255, 0.7)',
+                    border: `1px solid ${status === option.value ? '#3182F6' : 'rgba(255, 255, 255, 0.08)'}`
+                  }}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -239,14 +271,16 @@ export default function AdvancedSearchPage() {
           <button
             onClick={() => handleSearch(1)}
             disabled={loading}
-            className="btn btn-primary flex-1 sm:flex-initial"
+            className="flex-1 sm:flex-initial px-6 py-2 rounded-lg font-semibold text-white transition"
+            style={{ background: '#3182F6' }}
           >
-            {loading ? '🔄 검색 중...' : '🔍 검색'}
+            {loading ? '조회 중...' : '조회'}
           </button>
           <button
             onClick={handleReset}
             disabled={loading}
-            className="btn btn-secondary flex-1 sm:flex-initial"
+            className="flex-1 sm:flex-initial px-6 py-2 rounded-lg font-semibold text-white transition"
+            style={{ background: 'rgba(255, 255, 255, 0.1)' }}
           >
             초기화
           </button>
@@ -255,14 +289,20 @@ export default function AdvancedSearchPage() {
 
       {/* 에러 메시지 */}
       {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6">{error}</div>
+        <div className="p-4 rounded-lg mb-6" style={{
+          background: 'rgba(239, 68, 68, 0.1)',
+          color: '#FCA5A5',
+          border: '1px solid rgba(239, 68, 68, 0.2)'
+        }}>
+          {error}
+        </div>
       )}
 
       {/* 검색 결과 */}
       {results.length > 0 && (
         <div>
-          <div className="mb-4 text-gray-600">
-            검색 결과: <span className="font-semibold">{total}</span>개
+          <div className="mb-4" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+            검색 결과: <span className="font-semibold text-white">{total}</span>개
           </div>
 
           <div className="space-y-4 mb-6">
@@ -271,40 +311,51 @@ export default function AdvancedSearchPage() {
                 key={office.registration_number}
                 href={`/office/${encodeURIComponent(office.registration_number)}`}
               >
-                <div className="card hover:shadow-lg cursor-pointer">
+                <div className="rounded-lg p-4 cursor-pointer transition border" style={{
+                  background: '#13192B',
+                  borderColor: 'rgba(255, 255, 255, 0.08)'
+                }}>
                   <div className="flex justify-between items-start gap-4 flex-wrap">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between mb-2 gap-2 flex-wrap">
-                        <h3 className="font-bold text-base sm:text-lg text-gray-900 min-w-0">
+                        <h3 className="font-bold text-base sm:text-lg text-white min-w-0">
                           {office.office_name}
                         </h3>
                         <span
-                          className={`px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap flex-shrink-0 ${
-                            office.status === '영업중'
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-600 text-white'
-                          }`}
+                          className="px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap flex-shrink-0 text-white"
+                          style={{
+                            background: office.status === '영업중' ? '#3182F6' : 'rgba(255, 255, 255, 0.2)'
+                          }}
                         >
                           {office.status}
                         </span>
                       </div>
-                      <div className="text-xs sm:text-sm text-gray-600 space-y-1 mb-3">
+                      <div className="text-xs sm:text-sm space-y-1 mb-3" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
                         <p>등록번호: {office.registration_number}</p>
                         <p>대표: {office.representative_name || '-'}</p>
                         <p>주소: {office.address || '-'}</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {office.representative_experience === null && office.representative_name ? (
-                          <span className="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded bg-orange-50 text-orange-700 border border-orange-200 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded text-orange-400" style={{
+                            background: 'rgba(249, 115, 22, 0.1)',
+                            border: '1px solid rgba(249, 115, 22, 0.2)'
+                          }}>
                             대표자 자격증 미보유
                           </span>
                         ) : (
-                          <span className={`badge ${office.representative_experience !== null ? 'badge-info' : 'badge-warning'}`}>
+                          <span className="px-3 py-1 text-xs font-semibold rounded text-blue-400" style={{
+                            background: 'rgba(49, 130, 246, 0.1)',
+                            border: '1px solid rgba(49, 130, 246, 0.2)'
+                          }}>
                             대표 경력: {office.representative_experience !== null ? `${office.representative_experience}년` : '확인 불가'}
                           </span>
                         )}
                         {office.staff_count !== null && (
-                          <span className="badge badge-info">
+                          <span className="px-3 py-1 text-xs font-semibold rounded text-blue-400" style={{
+                            background: 'rgba(49, 130, 246, 0.1)',
+                            border: '1px solid rgba(49, 130, 246, 0.2)'
+                          }}>
                             직원수: {office.staff_count}명
                           </span>
                         )}
@@ -322,17 +373,27 @@ export default function AdvancedSearchPage() {
               <button
                 onClick={() => handleSearch(page - 1)}
                 disabled={page === 1}
-                className="px-3 sm:px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 whitespace-nowrap text-sm"
+                className="px-3 sm:px-4 py-2 rounded text-white transition"
+                style={{
+                  background: page === 1 ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  color: page === 1 ? 'rgba(255, 255, 255, 0.4)' : 'white'
+                }}
               >
                 이전
               </button>
-              <span className="text-gray-600 text-sm whitespace-nowrap">
+              <span className="text-sm whitespace-nowrap" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
                 {page} / {totalPages}
               </span>
               <button
                 onClick={() => handleSearch(page + 1)}
                 disabled={page === totalPages}
-                className="px-3 sm:px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 whitespace-nowrap text-sm"
+                className="px-3 sm:px-4 py-2 rounded text-white transition"
+                style={{
+                  background: page === totalPages ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  color: page === totalPages ? 'rgba(255, 255, 255, 0.4)' : 'white'
+                }}
               >
                 다음
               </button>
@@ -342,9 +403,13 @@ export default function AdvancedSearchPage() {
       )}
 
       {!loading && results.length === 0 && total === 0 && (
-        <div className="bg-gray-50 p-8 rounded-lg text-center">
-          <p className="text-gray-500">
-            검색 조건을 선택하고 검색 버튼을 클릭하세요
+        <div className="p-8 rounded-lg text-center" style={{
+          background: 'rgba(255, 255, 255, 0.05)',
+          borderColor: 'rgba(255, 255, 255, 0.08)',
+          border: '1px solid rgba(255, 255, 255, 0.08)'
+        }}>
+          <p style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+            검색 조건을 선택하고 조회 버튼을 누르세요
           </p>
         </div>
       )}
