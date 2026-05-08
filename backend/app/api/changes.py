@@ -1,11 +1,11 @@
 """
 변동 이력 API
 """
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Path
 from sqlalchemy.orm import Session
 from datetime import date, timedelta
 from app.db.database import get_db
-from app.db.models import DailySyncResult
+from app.db.models import DailySyncResult, OfficeCurrent
 
 router = APIRouter(
     prefix="/api/changes",
@@ -63,3 +63,33 @@ async def get_recent_changes(
         }
         for r in results
     ]
+
+
+@router.get("/office/{registration_number}")
+async def get_office_changes(
+    registration_number: str = Path(..., description="등록번호"),
+    db: Session = Depends(get_db),
+):
+    results = db.query(DailySyncResult).order_by(DailySyncResult.sync_date.desc()).all()
+
+    history = []
+    for r in results:
+        entry = {"sync_date": r.sync_date.isoformat(), "events": []}
+
+        for item in (r.new_list or []):
+            if item.get("registration_number") == registration_number:
+                entry["events"].append({"type": "신규개업", "detail": None})
+
+        for item in (r.closed_list or []):
+            if item.get("registration_number") == registration_number:
+                entry["events"].append({"type": "폐업", "detail": None})
+
+        for item in (r.updated_list or []):
+            if item.get("registration_number") == registration_number:
+                changes = item.get("changes", {})
+                entry["events"].append({"type": "정보변경", "detail": changes})
+
+        if entry["events"]:
+            history.append(entry)
+
+    return history

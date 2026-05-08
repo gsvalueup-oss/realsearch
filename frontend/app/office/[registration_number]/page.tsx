@@ -6,7 +6,28 @@ import Link from 'next/link'
 import { OfficeDetail } from '@/types'
 import api from '@/lib/api'
 import { extractLicenseYear } from '@/lib/licenseUtils'
-import { ArrowLeft, Users } from 'lucide-react'
+import { ArrowLeft, Users, History } from 'lucide-react'
+
+interface ChangeEvent {
+  type: '신규개업' | '폐업' | '정보변경'
+  detail: Record<string, { before: string; after: string }> | null
+}
+
+interface OfficeChangeHistory {
+  sync_date: string
+  events: ChangeEvent[]
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  office_name: '사무소명',
+  representative_name: '대표자명',
+  address: '주소',
+  road_address: '도로명주소',
+  phone_number: '전화번호',
+  status: '상태',
+  sido: '시도',
+  sigungu: '시군구',
+}
 
 export default function OfficePage() {
   const params = useParams()
@@ -15,6 +36,7 @@ export default function OfficePage() {
   const [office, setOffice] = useState<OfficeDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [changeHistory, setChangeHistory] = useState<OfficeChangeHistory[]>([])
 
   useEffect(() => {
     const fetchOffice = async () => {
@@ -31,8 +53,20 @@ export default function OfficePage() {
       }
     }
 
+    const fetchHistory = async () => {
+      try {
+        const { data } = await api.get<OfficeChangeHistory[]>(
+          `/api/changes/office/${registrationNumberParam}`
+        )
+        setChangeHistory(data)
+      } catch {
+        // 변동 이력 없어도 페이지는 정상 표시
+      }
+    }
+
     if (registrationNumberParam) {
       fetchOffice()
+      fetchHistory()
     }
   }, [registrationNumberParam])
 
@@ -289,6 +323,70 @@ export default function OfficePage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* 변동 이력 */}
+      {changeHistory.length > 0 && (
+        <div className="rounded-xl p-6 mt-8 border" style={{
+          background: '#13192B',
+          borderColor: 'rgba(255, 255, 255, 0.08)'
+        }}>
+          <div className="flex items-center gap-3 mb-6">
+            <History size={24} style={{ color: '#3182F6' }} />
+            <h2 className="text-2xl font-bold text-white">변동 이력</h2>
+          </div>
+          <div className="space-y-4">
+            {changeHistory.map((entry, idx) => (
+              <div key={idx} className="flex gap-4">
+                <div className="flex flex-col items-center">
+                  <div className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" style={{
+                    background: entry.events.some(e => e.type === '신규개업') ? '#22c55e'
+                      : entry.events.some(e => e.type === '폐업') ? '#ef4444'
+                      : '#3182F6'
+                  }} />
+                  {idx < changeHistory.length - 1 && (
+                    <div className="w-px flex-1 mt-1" style={{ background: 'rgba(255,255,255,0.1)', minHeight: '1.5rem' }} />
+                  )}
+                </div>
+                <div className="flex-1 pb-2">
+                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', marginBottom: '0.375rem' }}>
+                    {new Date(entry.sync_date).toLocaleDateString('ko-KR')}
+                  </p>
+                  {entry.events.map((ev, eidx) => (
+                    <div key={eidx} className="mb-2">
+                      <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold mb-1" style={{
+                        background: ev.type === '신규개업' ? 'rgba(34,197,94,0.15)'
+                          : ev.type === '폐업' ? 'rgba(239,68,68,0.15)'
+                          : 'rgba(49,130,246,0.15)',
+                        color: ev.type === '신규개업' ? '#22c55e'
+                          : ev.type === '폐업' ? '#ef4444'
+                          : '#3182F6'
+                      }}>
+                        {ev.type}
+                      </span>
+                      {ev.detail && Object.keys(ev.detail).length > 0 && (
+                        <div className="space-y-1 mt-1">
+                          {Object.entries(ev.detail).map(([field, val]) => (
+                            <div key={field} className="flex flex-wrap gap-1 items-start text-xs">
+                              <span style={{ color: 'rgba(255,255,255,0.5)', flexShrink: 0 }}>
+                                {FIELD_LABELS[field] || field}:
+                              </span>
+                              <span style={{ color: '#ef4444', textDecoration: 'line-through' }}>
+                                {val.before || '(없음)'}
+                              </span>
+                              <span style={{ color: 'rgba(255,255,255,0.4)' }}>→</span>
+                              <span style={{ color: '#22c55e' }}>{val.after || '(없음)'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
