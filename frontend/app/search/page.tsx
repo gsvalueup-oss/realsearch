@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { OfficeSummary, AgentSummary } from '@/types'
+import { extractLicenseYear } from '@/lib/licenseUtils'
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react'
 
 const SIDO_LIST = [
@@ -385,7 +386,9 @@ function SearchContent() {
                 )
               ) : (
                 <div className="space-y-3">
-                  {filteredAgents.map((agent) => (
+                  {filteredAgents.map((agent) => {
+                    const { year, career } = extractLicenseYear(agent.license_number || null, agent.license_date || null)
+                    return (
                     <Link key={agent.id} href={`/agent/${agent.id}`}>
                       <div className="result-card">
                         <div className="flex justify-between items-start gap-2 flex-wrap">
@@ -404,12 +407,8 @@ function SearchContent() {
                               <p>구분: {agent.agent_type || '-'}</p>
                               <p>사무소: {agent.office_name || '-'}</p>
                               <p>주소: {agent.address || '-'}</p>
-                              {agent.license_date && (
-                                <p>자격취득: {new Date(agent.license_date).toLocaleDateString('ko-KR')}</p>
-                              )}
-                              {agent.experience !== null && (
-                                <p>경력: {agent.experience}년</p>
-                              )}
+                              <p>자격취득: {year ? `${year}년` : '자격증 미보유'}</p>
+                              <p>경력: {career === '-' ? '확인 불가' : career}</p>
                             </div>
                           </div>
                           <span className="px-3 py-1 text-xs font-semibold rounded-full flex-shrink-0 text-white" style={{
@@ -420,7 +419,8 @@ function SearchContent() {
                         </div>
                       </div>
                     </Link>
-                  ))}
+                  )
+                  })}
                 </div>
               )}
             </div>

@@ -176,6 +176,7 @@ async def search(
                 "sido": agent.sido,
                 "sigungu": agent.sigungu,
                 "type": "person",
+                "license_number": agent.license_number,
                 "license_date": agent.license_date,
                 "experience": experience,
             })
