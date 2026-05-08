@@ -65,7 +65,7 @@ export default function ChangesPage() {
   useEffect(() => {
     fetch(`${getBaseURL()}/api/changes/recent?days=30`)
       .then(r => r.json())
-      .then(setRecentDays)
+      .then(d => { if (Array.isArray(d)) setRecentDays(d) })
       .catch(() => {})
   }, [])
 
@@ -73,7 +73,7 @@ export default function ChangesPage() {
     setLoading(true)
     fetch(`${getBaseURL()}/api/changes/daily?target_date=${selectedDate}`)
       .then(r => r.json())
-      .then(d => { setData(d); setLoading(false) })
+      .then(d => { if (d && d.sync_date) setData(d); setLoading(false) })
       .catch(() => setLoading(false))
   }, [selectedDate])
 
