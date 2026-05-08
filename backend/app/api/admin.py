@@ -258,7 +258,7 @@ def handle_office_upload(db: Session, rows: list, dry_run: bool):
             update_fields: dict = {'id': office.id}
             for key, value in new_data.items():
                 if value is not None and getattr(office, key, None) != value:
-                    changes[key] = {"before": getattr(office, key), "after": value}
+                    changes[key] = {"before": _json_safe(getattr(office, key)), "after": _json_safe(value)}
                     update_fields[key] = value
             if changes:
                 to_update_maps.append(update_fields)
@@ -393,7 +393,7 @@ def handle_agent_upload(db: Session, rows: list, dry_run: bool):
             update_fields: dict = {'id': agent.id}
             for key, value in new_data.items():
                 if value is not None and getattr(agent, key, None) != value:
-                    changes[key] = {"before": getattr(agent, key), "after": value}
+                    changes[key] = {"before": _json_safe(getattr(agent, key)), "after": _json_safe(value)}
                     update_fields[key] = value
             if changes:
                 to_update_maps.append(update_fields)
@@ -455,6 +455,12 @@ def handle_agent_upload(db: Session, rows: list, dry_run: bool):
 
 
 # ── 헬퍼 ─────────────────────────────────────────────────────────────────────
+
+def _json_safe(val):
+    from datetime import date as date_type
+    if isinstance(val, date_type):
+        return val.isoformat()
+    return val
 
 def _save_daily_sync_result(db: Session, inserted_list: list, updated_list: list, deleted_list: list):
     today = date.today()
