@@ -94,6 +94,7 @@ export default function AdminPage() {
   const [csvType, setCsvType] = useState('office')
   const [syncMode, setSyncMode] = useState('upsert')
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadPhase, setUploadPhase] = useState<'idle' | 'uploading' | 'processing'>('idle')
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null)
 
   const getBaseURL = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -141,31 +142,61 @@ export default function AdminPage() {
     if (!csvFile) { setMessage('파일을 선택하세요'); return }
     setLoading(true)
     setUploadProgress(0)
+    setUploadPhase('uploading')
+    setSyncResult(null)
+    setMessage('')
+
+    const base = getBaseURL()
+    const formData = new FormData()
+    formData.append('file', csvFile)
+    const url = `${base}/api/admin/csv-upload?password=${password}&data_type=${csvType}&sync_mode=${syncMode}`
+
     try {
-      const base = getBaseURL()
-      const formData = new FormData()
-      formData.append('file', csvFile)
-      const res = await fetch(
-        `${base}/api/admin/csv-upload?password=${password}&data_type=${csvType}&sync_mode=${syncMode}`,
-        { method: 'POST', body: formData }
-      )
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.detail || 'CSV 업로드 실패')
-      }
-      const data = await res.json()
+      const data = await new Promise<any>((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+
+        xhr.upload.onprogress = (ev) => {
+          if (ev.lengthComputable) {
+            setUploadProgress(Math.round((ev.loaded / ev.total) * 100))
+          }
+        }
+
+        xhr.upload.onload = () => {
+          setUploadProgress(100)
+          setUploadPhase('processing')
+        }
+
+        xhr.onload = () => {
+          try {
+            const result = JSON.parse(xhr.responseText)
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve(result)
+            } else {
+              reject(new Error(result.detail || 'CSV 업로드 실패'))
+            }
+          } catch {
+            reject(new Error('서버 응답 오류'))
+          }
+        }
+
+        xhr.onerror = () => reject(new Error('네트워크 오류가 발생했습니다'))
+        xhr.ontimeout = () => reject(new Error('요청 시간이 초과되었습니다'))
+
+        xhr.open('POST', url)
+        xhr.send(formData)
+      })
+
       setMessage(data.message)
       setSyncResult(data)
-      setUploadProgress(100)
       setCsvFile(null)
-      setTimeout(() => setUploadProgress(0), 1000)
       const statsRes = await fetch(`${base}/api/admin/stats?password=${password}`)
       setStats(await statsRes.json())
     } catch (error: any) {
       setMessage(error.message || 'CSV 업로드 실패')
-      setUploadProgress(0)
     } finally {
       setLoading(false)
+      setUploadPhase('idle')
+      setUploadProgress(0)
     }
   }
 
@@ -336,15 +367,36 @@ export default function AdminPage() {
                 </p>
               </div>
 
-              {loading && uploadProgress > 0 && (
+              {uploadPhase === 'uploading' && (
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 13, color: TEXT_MUTED }}>업로드 진행 중...</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: TEXT }}>{uploadProgress}%</span>
+                    <span style={{ fontSize: 13, color: TEXT_MUTED }}>파일 전송 중...</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: ACCENT }}>{uploadProgress}%</span>
                   </div>
                   <div style={{ width: '100%', background: 'rgba(255,255,255,0.08)', borderRadius: 99, height: 6, overflow: 'hidden' }}>
-                    <div style={{ width: `${uploadProgress}%`, background: ACCENT, height: '100%', transition: 'width 0.3s ease' }} />
+                    <div style={{ width: `${uploadProgress}%`, background: ACCENT, height: '100%', transition: 'width 0.2s ease' }} />
                   </div>
+                </div>
+              )}
+
+              {uploadPhase === 'processing' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 13, color: TEXT_MUTED }}>서버 처리 중... (잠시 기다려 주세요)</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#f59e0b' }}>처리 중</span>
+                  </div>
+                  <div style={{ width: '100%', background: 'rgba(255,255,255,0.08)', borderRadius: 99, height: 6, overflow: 'hidden' }}>
+                    <div style={{
+                      width: '40%', background: '#f59e0b', height: '100%',
+                      animation: 'shimmer 1.4s ease-in-out infinite',
+                    }} />
+                  </div>
+                  <style>{`
+                    @keyframes shimmer {
+                      0% { transform: translateX(-100%) scaleX(2.5); }
+                      100% { transform: translateX(350%) scaleX(2.5); }
+                    }
+                  `}</style>
                 </div>
               )}
 
@@ -357,7 +409,9 @@ export default function AdminPage() {
                   fontWeight: 600, fontSize: 15, cursor: loading || !csvFile ? 'not-allowed' : 'pointer',
                 }}
               >
-                {loading ? '처리 중...' : 'CSV 업로드 및 동기화'}
+                {uploadPhase === 'uploading' ? `전송 중... ${uploadProgress}%`
+                  : uploadPhase === 'processing' ? '서버 처리 중...'
+                  : 'CSV 업로드 및 동기화'}
               </button>
             </form>
           </div>
