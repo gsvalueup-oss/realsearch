@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { label: '데이터 관리', href: '/admin/sync' },
   { label: '방문자 분석', href: '/admin/visits' },
   { label: 'API 로그', href: '/admin/api-monitor' },
+  { label: '관리자 설정', href: '/admin/settings' },
 ]
 
 export default function AdminNav() {
