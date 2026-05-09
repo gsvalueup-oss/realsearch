@@ -1,124 +1,45 @@
 'use client'
 
 import { useState } from 'react'
-
-type CorrectionStatus = 'pending' | 'reviewing' | 'resolved' | 'rejected'
-type CorrectionStatusFilter = CorrectionStatus | ''
-type CorrectionTargetType = 'agent' | 'office'
-type CorrectionTargetFilter = CorrectionTargetType | ''
-
-interface Stats {
-  total_offices: number
-  active_offices: number
-  total_agents: number
-  most_viewed_offices: Array<{ registration_number: string; office_name: string; view_count: number }>
-  most_viewed_agents: Array<{ id: number; name: string; office_name: string; view_count: number }>
-}
-
-interface APIStats {
-  total_requests: number
-  avg_response_time: number
-  error_count: number
-  endpoint_stats: Array<{ endpoint: string; method: string; count: number; avg_time: number }>
-  recent_errors: Array<{ endpoint: string; method: string; status_code: number; response_time_ms: number; created_at: string }>
-}
-
-interface UserStats {
-  total_unique_visitors: number
-  total_visits: number
-  daily_visitors: Array<{ date: string; unique_visitors: number; total_visits: number }>
-  page_stats: Array<{ page: string; visit_count: number; unique_visitors: number }>
-  hourly_stats: Array<{ hour: string; visit_count: number }>
-  browser_stats: Array<{ user_agent: string; visit_count: number }>
-  recent_visitors: Array<{ ip_address: string; page: string; visited_at: string; visit_count: number }>
-}
-
-interface SyncResult {
-  dry_run: boolean
-  message: string
-  inserted: number
-  updated: number
-  deleted: number
-  safety_warning: string | null
-  inserted_list: any[]
-  updated_list: any[]
-  deleted_list: any[]
-}
-
-interface CorrectionRequest {
-  id: number
-  target_type: CorrectionTargetType
-  target_id: string
-  target_name: string
-  page_url: string
-  request_content: string
-  requester_contact: string | null
-  snapshot: string | Record<string, unknown> | null
-  status: CorrectionStatus
-  admin_note: string | null
-  ip_address: string | null
-  user_agent: string | null
-  created_at: string
-  updated_at: string
-  resolved_at: string | null
-}
-
-const BG = '#0A0E1A'
-const CARD_BG = 'rgba(255,255,255,0.04)'
-const BORDER = 'rgba(255,255,255,0.08)'
-const TEXT = 'rgba(255,255,255,0.9)'
-const TEXT_MUTED = 'rgba(255,255,255,0.5)'
-const ACCENT = '#3182F6'
-const TABLE_HEADER_BG = 'rgba(255,255,255,0.06)'
-const TABLE_HOVER = 'rgba(255,255,255,0.03)'
-
-const STATUS_LABELS: Record<CorrectionStatus, string> = {
-  pending: '대기',
-  reviewing: '검토중',
-  resolved: '완료',
-  rejected: '반려',
-}
-
-const STATUS_COLORS: Record<CorrectionStatus, { color: string; bg: string; border: string }> = {
-  pending: { color: '#fbbf24', bg: 'rgba(251,191,36,0.12)', border: 'rgba(251,191,36,0.28)' },
-  reviewing: { color: ACCENT, bg: 'rgba(49,130,246,0.12)', border: 'rgba(49,130,246,0.28)' },
-  resolved: { color: '#34d399', bg: 'rgba(52,211,153,0.12)', border: 'rgba(52,211,153,0.28)' },
-  rejected: { color: '#f87171', bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.28)' },
-}
-
-const cardStyle: React.CSSProperties = {
-  background: CARD_BG,
-  borderRadius: 16,
-  padding: 24,
-  border: `1px solid ${BORDER}`,
-}
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '10px 16px',
-  background: 'rgba(255,255,255,0.06)',
-  border: `1px solid ${BORDER}`,
-  borderRadius: 8,
-  color: TEXT,
-  outline: 'none',
-}
-
-const thStyle: React.CSSProperties = {
-  padding: '12px 24px',
-  textAlign: 'left',
-  fontSize: 13,
-  fontWeight: 600,
-  color: TEXT_MUTED,
-  background: TABLE_HEADER_BG,
-  borderBottom: `1px solid ${BORDER}`,
-}
-
-const tdStyle: React.CSSProperties = {
-  padding: '14px 24px',
-  fontSize: 13,
-  color: TEXT,
-  borderBottom: `1px solid ${BORDER}`,
-}
+import AdminLogin from './_components/AdminLogin'
+import AdminShell from './_components/AdminShell'
+import PopularTables from './_components/PopularTables'
+import StatCards from './_components/StatCards'
+import {
+  fetchAdminStats,
+  fetchApiStats,
+  fetchCorrectionRequests as fetchCorrectionRequestsApi,
+  fetchUserStats,
+  getCsvUploadUrl,
+  patchCorrectionRequest,
+  refreshAdminStats,
+  resetViews,
+  uploadCsvWithProgress,
+} from './_lib/adminApi'
+import {
+  ACCENT,
+  BORDER,
+  STATUS_COLORS,
+  STATUS_LABELS,
+  TABLE_HOVER,
+  TEXT,
+  TEXT_MUTED,
+  cardStyle,
+  inputStyle,
+  tdStyle,
+  thStyle,
+} from './_lib/adminStyles'
+import type {
+  APIStats,
+  CorrectionRequest,
+  CorrectionStatus,
+  CorrectionStatusFilter,
+  CorrectionTargetFilter,
+  CorrectionTargetType,
+  Stats,
+  SyncResult,
+  UserStats,
+} from './_lib/adminTypes'
 
 export default function AdminPage() {
   const [password, setPassword] = useState('')
@@ -145,22 +66,6 @@ export default function AdminPage() {
   const [correctionError, setCorrectionError] = useState('')
   const [savingCorrectionId, setSavingCorrectionId] = useState<number | null>(null)
 
-  const getBaseURL = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-
-  const buildCorrectionRequestsURL = (
-    base: string,
-    status: CorrectionStatusFilter = correctionStatusFilter,
-    targetType: CorrectionTargetFilter = correctionTargetFilter
-  ) => {
-    const params = new URLSearchParams({
-      password,
-      limit: '100',
-    })
-    if (status) params.set('status', status)
-    if (targetType) params.set('target_type', targetType)
-    return `${base}/api/admin/correction-requests?${params.toString()}`
-  }
-
   const fetchCorrectionRequests = async (
     status: CorrectionStatusFilter = correctionStatusFilter,
     targetType: CorrectionTargetFilter = correctionTargetFilter
@@ -171,9 +76,7 @@ export default function AdminPage() {
     setCorrectionError('')
 
     try {
-      const res = await fetch(buildCorrectionRequestsURL(getBaseURL(), status, targetType))
-      if (!res.ok) throw new Error('정정 요청 목록을 불러오지 못했습니다.')
-      setCorrectionRequests(await res.json())
+      setCorrectionRequests(await fetchCorrectionRequestsApi({ password, status, targetType }))
     } catch (error: any) {
       setCorrectionError(error.message || '정정 요청 목록을 불러오지 못했습니다.')
     } finally {
@@ -202,19 +105,7 @@ export default function AdminPage() {
     setCorrectionError('')
 
     try {
-      const params = new URLSearchParams({ password })
-      const res = await fetch(`${getBaseURL()}/api/admin/correction-requests/${request.id}?${params.toString()}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status: request.status,
-          admin_note: request.admin_note || null,
-        }),
-      })
-
-      if (!res.ok) throw new Error('정정 요청 저장에 실패했습니다.')
-
-      const updated = await res.json()
+      const updated = await patchCorrectionRequest({ password, request })
       setCorrectionRequests((requests) => requests.map((item) => (
         item.id === updated.id ? updated : item
       )))
@@ -234,19 +125,16 @@ export default function AdminPage() {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 10000)
     try {
-      const base = getBaseURL()
-      const correctionParams = new URLSearchParams({ password, limit: '100' })
-      const [statsRes, apiStatsRes, userStatsRes, correctionRequestsRes] = await Promise.all([
-        fetch(`${base}/api/admin/stats?password=${password}`, { signal: controller.signal }),
-        fetch(`${base}/api/admin/api-stats?password=${password}`, { signal: controller.signal }),
-        fetch(`${base}/api/admin/user-stats?password=${password}`, { signal: controller.signal }),
-        fetch(`${base}/api/admin/correction-requests?${correctionParams.toString()}`, { signal: controller.signal }),
+      const [statsData, apiStatsData, userStatsData, correctionRequestsData] = await Promise.all([
+        fetchAdminStats(password, controller.signal),
+        fetchApiStats(password, controller.signal),
+        fetchUserStats(password, controller.signal),
+        fetchCorrectionRequestsApi({ password, signal: controller.signal }),
       ])
-      if (!statsRes.ok) throw new Error('인증 실패')
-      setStats(await statsRes.json())
-      setApiStats(await apiStatsRes.json())
-      setUserStats(await userStatsRes.json())
-      setCorrectionRequests(correctionRequestsRes.ok ? await correctionRequestsRes.json() : [])
+      setStats(statsData)
+      setApiStats(apiStatsData)
+      setUserStats(userStatsData)
+      setCorrectionRequests(correctionRequestsData)
       setAuthenticated(true)
     } catch (err: any) {
       if (err.name === 'AbortError') {
@@ -265,37 +153,15 @@ export default function AdminPage() {
     if (!window.confirm('정말 조회수를 초기화하시겠습니까?')) return
     setLoading(true)
     try {
-      const base = getBaseURL()
-      await fetch(`${base}/api/admin/reset-views?password=${password}`, { method: 'POST' })
+      await resetViews(password)
       setMessage('조회수가 초기화되었습니다')
-      const res = await fetch(`${base}/api/admin/stats?password=${password}`)
-      setStats(await res.json())
+      setStats(await refreshAdminStats(password))
     } catch {
       setMessage('오류가 발생했습니다')
     } finally {
       setLoading(false)
     }
   }
-
-  const xhrUpload = (url: string, formData: FormData): Promise<SyncResult> =>
-    new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest()
-      xhr.upload.onprogress = (ev) => {
-        if (ev.lengthComputable) setUploadProgress(Math.round((ev.loaded / ev.total) * 100))
-      }
-      xhr.upload.onload = () => { setUploadProgress(100); setUploadPhase('processing') }
-      xhr.onload = () => {
-        try {
-          const result = JSON.parse(xhr.responseText)
-          if (xhr.status >= 200 && xhr.status < 300) resolve(result)
-          else reject(new Error(result.detail || '업로드 실패'))
-        } catch { reject(new Error('서버 응답 오류')) }
-      }
-      xhr.onerror = () => reject(new Error('네트워크 오류가 발생했습니다'))
-      xhr.ontimeout = () => reject(new Error('요청 시간이 초과되었습니다'))
-      xhr.open('POST', url)
-      xhr.send(formData)
-    })
 
   const handlePreview = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -308,13 +174,17 @@ export default function AdminPage() {
     setMessage('')
     setConfirmDanger(false)
 
-    const base = getBaseURL()
     const formData = new FormData()
     formData.append('file', csvFile)
-    const url = `${base}/api/admin/csv-upload?password=${password}&data_type=${csvType}&dry_run=true`
+    const url = getCsvUploadUrl({ password, csvType, dryRun: true })
 
     try {
-      const data = await xhrUpload(url, formData)
+      const data = await uploadCsvWithProgress({
+        url,
+        formData,
+        onProgress: setUploadProgress,
+        onUploaded: () => setUploadPhase('processing'),
+      })
       setPreviewResult(data)
       setUploadStep('preview_ready')
       setMessage('')
@@ -338,21 +208,24 @@ export default function AdminPage() {
     setUploadPhase('uploading')
     setMessage('')
 
-    const base = getBaseURL()
     const formData = new FormData()
     formData.append('file', csvFile)
-    const url = `${base}/api/admin/csv-upload?password=${password}&data_type=${csvType}&dry_run=false`
+    const url = getCsvUploadUrl({ password, csvType, dryRun: false })
 
     try {
-      const data = await xhrUpload(url, formData)
+      const data = await uploadCsvWithProgress({
+        url,
+        formData,
+        onProgress: setUploadProgress,
+        onUploaded: () => setUploadPhase('processing'),
+      })
       setMessage(data.message)
       setSyncResult(data)
       setPreviewResult(null)
       setUploadStep('idle')
       setCsvFile(null)
       setConfirmDanger(false)
-      const statsRes = await fetch(`${base}/api/admin/stats?password=${password}`)
-      setStats(await statsRes.json())
+      setStats(await refreshAdminStats(password))
     } catch (error: any) {
       setMessage(error.message || 'CSV 적용 실패')
     } finally {
@@ -373,134 +246,25 @@ export default function AdminPage() {
 
   if (!authenticated) {
     return (
-      <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 16px' }}>
-        <div style={{ width: '100%', maxWidth: 400, ...cardStyle }}>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: TEXT, marginBottom: 24, textAlign: 'center' }}>관리자 로그인</h1>
-          <form onSubmit={handleLogin}>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: TEXT_MUTED, marginBottom: 8 }}>비밀번호</label>
-              <input
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                style={inputStyle}
-                placeholder="관리자 비밀번호를 입력하세요"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              style={{ width: '100%', padding: '10px 0', background: loading ? 'rgba(49,130,246,0.5)' : ACCENT, color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer' }}
-            >
-              {loading ? '로그인 중...' : '로그인'}
-            </button>
-          </form>
-          {message && (
-            <p style={{ marginTop: 16, fontSize: 13, textAlign: 'center', color: message.includes('성공') ? '#34d399' : '#f87171' }}>
-              {message}
-            </p>
-          )}
-        </div>
-      </div>
+      <AdminLogin
+        password={password}
+        loading={loading}
+        message={message}
+        onPasswordChange={setPassword}
+        onSubmit={handleLogin}
+      />
     )
   }
 
   return (
-    <div style={{ maxWidth: 1152, margin: '0 auto', padding: '32px 16px', background: BG, minHeight: '100vh' }}>
-      {/* 헤더 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: TEXT }}>관리자 대시보드</h1>
-        <button
-          onClick={() => { setAuthenticated(false); setPassword(''); setStats(null); setCorrectionRequests([]) }}
-          style={{ padding: '8px 16px', background: 'rgba(255,255,255,0.08)', color: TEXT_MUTED, border: `1px solid ${BORDER}`, borderRadius: 8, cursor: 'pointer', fontSize: 13 }}
-        >
-          로그아웃
-        </button>
-      </div>
-
-      {message && (
-        <div style={{
-          padding: '12px 16px', borderRadius: 8, marginBottom: 24, fontSize: 14,
-          background: message.includes('완료') || message.includes('성공') ? 'rgba(52,211,153,0.1)' : 'rgba(248,113,113,0.1)',
-          color: message.includes('완료') || message.includes('성공') ? '#34d399' : '#f87171',
-          border: `1px solid ${message.includes('완료') || message.includes('성공') ? 'rgba(52,211,153,0.2)' : 'rgba(248,113,113,0.2)'}`,
-        }}>
-          {message}
-        </div>
-      )}
-
+    <AdminShell
+      message={message}
+      onLogout={() => { setAuthenticated(false); setPassword(''); setStats(null); setCorrectionRequests([]) }}
+    >
       {stats && (
         <>
-          {/* 기본 통계 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
-            {[
-              { label: '전체 사무소', value: stats.total_offices.toLocaleString(), color: TEXT },
-              { label: '영업중 사무소', value: stats.active_offices.toLocaleString(), color: '#34d399' },
-              { label: '전체 중개업자', value: stats.total_agents.toLocaleString(), color: ACCENT },
-            ].map((item) => (
-              <div key={item.label} style={cardStyle}>
-                <p style={{ fontSize: 12, color: TEXT_MUTED, marginBottom: 8 }}>{item.label}</p>
-                <p style={{ fontSize: 32, fontWeight: 700, color: item.color }}>{item.value}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* 인기 조회 사무소 */}
-          <div style={{ ...cardStyle, marginBottom: 24 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 16 }}>인기 조회 사무소 TOP 10</h2>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr>
-                    <th style={thStyle}>순위</th>
-                    <th style={thStyle}>사무소명</th>
-                    <th style={{ ...thStyle, textAlign: 'center' }}>조회수</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.most_viewed_offices.map((office, idx) => (
-                    <tr key={office.registration_number} style={{ cursor: 'default' }}
-                      onMouseEnter={e => (e.currentTarget.style.background = TABLE_HOVER)}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                      <td style={{ ...tdStyle, fontWeight: 600 }}>{idx + 1}</td>
-                      <td style={tdStyle}>{office.office_name}</td>
-                      <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600, color: ACCENT }}>{office.view_count.toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* 인기 조회 중개업자 */}
-          <div style={{ ...cardStyle, marginBottom: 24 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 16 }}>인기 조회 중개업자 TOP 10</h2>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr>
-                    <th style={thStyle}>순위</th>
-                    <th style={thStyle}>이름</th>
-                    <th style={thStyle}>소속 사무소</th>
-                    <th style={{ ...thStyle, textAlign: 'center' }}>조회수</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.most_viewed_agents.map((agent, idx) => (
-                    <tr key={agent.id}
-                      onMouseEnter={e => (e.currentTarget.style.background = TABLE_HOVER)}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                      <td style={{ ...tdStyle, fontWeight: 600 }}>{idx + 1}</td>
-                      <td style={tdStyle}>{agent.name}</td>
-                      <td style={{ ...tdStyle, color: TEXT_MUTED }}>{agent.office_name}</td>
-                      <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600, color: ACCENT }}>{agent.view_count.toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <StatCards stats={stats} />
+          <PopularTables stats={stats} />
 
           <CorrectionRequestsSection
             requests={correctionRequests}
@@ -907,7 +671,7 @@ export default function AdminPage() {
           </div>
         </>
       )}
-    </div>
+    </AdminShell>
   )
 }
 
