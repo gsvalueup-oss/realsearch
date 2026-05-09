@@ -7,6 +7,8 @@ import { ACCENT, BORDER, TEXT, TEXT_MUTED } from '../_lib/adminStyles'
 const NAV_ITEMS = [
   { label: '대시보드', href: '/admin' },
   { label: '정정 요청', href: '/admin/correction-requests' },
+  { label: '데이터 관리', href: '/admin/sync' },
+  { label: '방문자 분석', href: '/admin/visits' },
 ]
 
 export default function AdminNav() {
