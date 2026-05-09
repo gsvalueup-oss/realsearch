@@ -60,6 +60,7 @@ async def list_offices(
 @router.get("/{registration_number}", response_model=schemas.OfficeDetail)
 async def get_office(
     registration_number: str,
+    track_view: bool = Query(True, description="조회수 증가 여부"),
     db: Session = Depends(get_db),
 ):
     office = db.query(OfficeCurrent).filter(
@@ -68,8 +69,9 @@ async def get_office(
     if not office:
         raise HTTPException(status_code=404, detail="사무소를 찾을 수 없습니다")
 
-    office.view_count = (office.view_count or 0) + 1
-    db.commit()
+    if track_view:
+        office.view_count = (office.view_count or 0) + 1
+        db.commit()
 
     agents = db.query(AgentCurrent).filter(
         AgentCurrent.office_registration_number == registration_number

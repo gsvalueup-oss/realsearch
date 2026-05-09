@@ -61,6 +61,7 @@ async def list_agents(
 @router.get("/{agent_id}", response_model=schemas.AgentDetail)
 async def get_agent(
     agent_id: int,
+    track_view: bool = Query(True, description="조회수 증가 여부"),
     db: Session = Depends(get_db),
 ):
     agent = db.query(AgentCurrent).options(
@@ -70,8 +71,9 @@ async def get_agent(
     if not agent:
         raise HTTPException(status_code=404, detail="중개업자를 찾을 수 없습니다")
 
-    agent.view_count = (agent.view_count or 0) + 1
-    db.commit()
+    if track_view:
+        agent.view_count = (agent.view_count or 0) + 1
+        db.commit()
 
     return agent
 
