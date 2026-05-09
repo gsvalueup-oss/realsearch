@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 from datetime import date, timedelta, datetime
 from app.db.database import get_db
-from app.db.models import OfficeCurrent, AgentCurrent, DataSyncLog, DailySyncResult, APIRequestLog, UserVisit
+from app.db.models import OfficeCurrent, AgentCurrent, DataSyncLog, DailySyncResult, APIRequestLog, UserVisit, CorrectionRequest
 from app.db import schemas
 import csv
 import io
@@ -25,6 +25,16 @@ DELETE_SAFETY_THRESHOLD = 0.20  # 20% 이상 삭제 시 경고
 def verify_admin(password: str):
     if password != ADMIN_PASSWORD:
         raise HTTPException(status_code=401, detail="인증 실패")
+
+
+def validate_correction_status(status: str | None):
+    if status and status not in {"pending", "reviewing", "resolved", "rejected"}:
+        raise HTTPException(status_code=400, detail="허용되지 않는 상태값입니다")
+
+
+def validate_correction_target_type(target_type: str | None):
+    if target_type and target_type not in {"agent", "office"}:
+        raise HTTPException(status_code=400, detail="target_type은 agent 또는 office만 가능합니다")
 
 
 @router.get("/stats")
@@ -157,6 +167,83 @@ async def user_stats(
             for s in recent_visitors
         ],
     }
+
+
+@router.get(
+    "/correction-requests",
+    response_model=list[schemas.CorrectionRequestResponse],
+)
+async def list_correction_requests(
+    password: str = Query(""),
+    status: str | None = Query(None),
+    target_type: str | None = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+):
+    verify_admin(password)
+    validate_correction_status(status)
+    validate_correction_target_type(target_type)
+
+    query = db.query(CorrectionRequest)
+    if status:
+        query = query.filter(CorrectionRequest.status == status)
+    if target_type:
+        query = query.filter(CorrectionRequest.target_type == target_type)
+
+    return query.order_by(desc(CorrectionRequest.created_at)).limit(limit).all()
+
+
+@router.get(
+    "/correction-requests/{request_id}",
+    response_model=schemas.CorrectionRequestResponse,
+)
+async def get_correction_request(
+    request_id: int,
+    password: str = Query(""),
+    db: Session = Depends(get_db),
+):
+    verify_admin(password)
+    correction_request = db.query(CorrectionRequest).filter(
+        CorrectionRequest.id == request_id
+    ).first()
+    if not correction_request:
+        raise HTTPException(status_code=404, detail="정정 요청을 찾을 수 없습니다")
+
+    return correction_request
+
+
+@router.patch(
+    "/correction-requests/{request_id}",
+    response_model=schemas.CorrectionRequestResponse,
+)
+async def update_correction_request(
+    request_id: int,
+    payload: schemas.CorrectionRequestUpdate,
+    password: str = Query(""),
+    db: Session = Depends(get_db),
+):
+    verify_admin(password)
+    correction_request = db.query(CorrectionRequest).filter(
+        CorrectionRequest.id == request_id
+    ).first()
+    if not correction_request:
+        raise HTTPException(status_code=404, detail="정정 요청을 찾을 수 없습니다")
+
+    if payload.status is not None:
+        correction_request.status = payload.status
+        if payload.status in {"resolved", "rejected"}:
+            correction_request.resolved_at = datetime.utcnow()
+        else:
+            correction_request.resolved_at = None
+
+    if payload.admin_note is not None:
+        correction_request.admin_note = payload.admin_note
+
+    correction_request.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(correction_request)
+
+    return correction_request
 
 
 @router.post("/csv-upload")

@@ -1,8 +1,8 @@
 """
 Pydantic response 스키마
 """
-from pydantic import BaseModel, ConfigDict
-from typing import Optional, List, Generic, TypeVar
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Optional, List, Generic, TypeVar, Literal, Any
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -135,3 +135,41 @@ class StaffMetric(BaseModel):
     licensed_agent_count: Optional[int] = None
     assistant_count: Optional[int] = None
     staff_change_count: Optional[int] = None
+
+
+CorrectionTargetType = Literal["agent", "office"]
+CorrectionStatus = Literal["pending", "reviewing", "resolved", "rejected"]
+
+
+class CorrectionRequestCreate(BaseModel):
+    target_type: CorrectionTargetType
+    target_id: str = Field(..., min_length=1, max_length=100)
+    target_name: str = Field(..., min_length=1, max_length=255)
+    page_url: str = Field(..., min_length=1, max_length=500)
+    snapshot: Optional[Any] = None
+    request_content: str = Field(..., min_length=1, max_length=2000)
+    requester_contact: Optional[str] = Field(default=None, max_length=255)
+
+
+class CorrectionRequestUpdate(BaseModel):
+    status: Optional[CorrectionStatus] = None
+    admin_note: Optional[str] = Field(default=None, max_length=2000)
+
+
+class CorrectionRequestResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    target_type: str
+    target_id: str
+    target_name: str
+    page_url: str
+    request_content: str
+    requester_contact: Optional[str] = None
+    snapshot: Optional[Any] = None
+    status: str
+    admin_note: Optional[str] = None
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    resolved_at: Optional[datetime] = None

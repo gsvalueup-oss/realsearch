@@ -184,6 +184,31 @@ class ChangeLog(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class CorrectionRequest(Base):
+    """Information correction request submitted by users."""
+    __tablename__ = "correction_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    target_type = Column(String(20), nullable=False, index=True)
+    target_id = Column(String(100), nullable=False, index=True)
+    target_name = Column(String(255), nullable=False, index=True)
+    page_url = Column(String(500), nullable=False)
+    request_content = Column(Text, nullable=False)
+    requester_contact = Column(String(255))
+    snapshot = Column(JSON)
+    status = Column(String(20), nullable=False, default="pending", index=True)
+    admin_note = Column(Text)
+    ip_address = Column(String(50), index=True)
+    user_agent = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    resolved_at = Column(DateTime)
+
+    __table_args__ = (
+        Index('idx_correction_requests_target', 'target_type', 'target_id'),
+    )
+
+
 class DailySyncResult(Base):
     """일별 CSV 동기화 결과 (오늘의 변동 페이지용)"""
     __tablename__ = "daily_sync_results"

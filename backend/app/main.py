@@ -197,7 +197,7 @@ async def root():
 
 
 # API 라우트 임포트
-from app.api import search, offices, agents, rankings, regions, changes, popular, admin, advanced_search
+from app.api import search, offices, agents, rankings, regions, changes, popular, admin, advanced_search, correction_requests
 
 app.include_router(search.router)
 app.include_router(advanced_search.router)
@@ -208,6 +208,7 @@ app.include_router(regions.router)
 app.include_router(changes.router)
 app.include_router(popular.router)
 app.include_router(admin.router)
+app.include_router(correction_requests.router)
 
 
 if __name__ == "__main__":
