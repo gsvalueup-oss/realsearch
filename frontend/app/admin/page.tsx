@@ -2,6 +2,11 @@
 
 import { useState } from 'react'
 
+type CorrectionStatus = 'pending' | 'reviewing' | 'resolved' | 'rejected'
+type CorrectionStatusFilter = CorrectionStatus | ''
+type CorrectionTargetType = 'agent' | 'office'
+type CorrectionTargetFilter = CorrectionTargetType | ''
+
 interface Stats {
   total_offices: number
   active_offices: number
@@ -40,6 +45,24 @@ interface SyncResult {
   deleted_list: any[]
 }
 
+interface CorrectionRequest {
+  id: number
+  target_type: CorrectionTargetType
+  target_id: string
+  target_name: string
+  page_url: string
+  request_content: string
+  requester_contact: string | null
+  snapshot: string | Record<string, unknown> | null
+  status: CorrectionStatus
+  admin_note: string | null
+  ip_address: string | null
+  user_agent: string | null
+  created_at: string
+  updated_at: string
+  resolved_at: string | null
+}
+
 const BG = '#0A0E1A'
 const CARD_BG = 'rgba(255,255,255,0.04)'
 const BORDER = 'rgba(255,255,255,0.08)'
@@ -48,6 +71,20 @@ const TEXT_MUTED = 'rgba(255,255,255,0.5)'
 const ACCENT = '#3182F6'
 const TABLE_HEADER_BG = 'rgba(255,255,255,0.06)'
 const TABLE_HOVER = 'rgba(255,255,255,0.03)'
+
+const STATUS_LABELS: Record<CorrectionStatus, string> = {
+  pending: '대기',
+  reviewing: '검토중',
+  resolved: '완료',
+  rejected: '반려',
+}
+
+const STATUS_COLORS: Record<CorrectionStatus, { color: string; bg: string; border: string }> = {
+  pending: { color: '#fbbf24', bg: 'rgba(251,191,36,0.12)', border: 'rgba(251,191,36,0.28)' },
+  reviewing: { color: ACCENT, bg: 'rgba(49,130,246,0.12)', border: 'rgba(49,130,246,0.28)' },
+  resolved: { color: '#34d399', bg: 'rgba(52,211,153,0.12)', border: 'rgba(52,211,153,0.28)' },
+  rejected: { color: '#f87171', bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.28)' },
+}
 
 const cardStyle: React.CSSProperties = {
   background: CARD_BG,
@@ -101,8 +138,93 @@ export default function AdminPage() {
   const [uploadStep, setUploadStep] = useState<'idle' | 'preview_ready'>('idle')
   const [previewResult, setPreviewResult] = useState<SyncResult | null>(null)
   const [confirmDanger, setConfirmDanger] = useState(false)
+  const [correctionRequests, setCorrectionRequests] = useState<CorrectionRequest[]>([])
+  const [correctionStatusFilter, setCorrectionStatusFilter] = useState<CorrectionStatusFilter>('')
+  const [correctionTargetFilter, setCorrectionTargetFilter] = useState<CorrectionTargetFilter>('')
+  const [correctionLoading, setCorrectionLoading] = useState(false)
+  const [correctionError, setCorrectionError] = useState('')
+  const [savingCorrectionId, setSavingCorrectionId] = useState<number | null>(null)
 
   const getBaseURL = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+  const buildCorrectionRequestsURL = (
+    base: string,
+    status: CorrectionStatusFilter = correctionStatusFilter,
+    targetType: CorrectionTargetFilter = correctionTargetFilter
+  ) => {
+    const params = new URLSearchParams({
+      password,
+      limit: '100',
+    })
+    if (status) params.set('status', status)
+    if (targetType) params.set('target_type', targetType)
+    return `${base}/api/admin/correction-requests?${params.toString()}`
+  }
+
+  const fetchCorrectionRequests = async (
+    status: CorrectionStatusFilter = correctionStatusFilter,
+    targetType: CorrectionTargetFilter = correctionTargetFilter
+  ) => {
+    if (!password) return
+
+    setCorrectionLoading(true)
+    setCorrectionError('')
+
+    try {
+      const res = await fetch(buildCorrectionRequestsURL(getBaseURL(), status, targetType))
+      if (!res.ok) throw new Error('정정 요청 목록을 불러오지 못했습니다.')
+      setCorrectionRequests(await res.json())
+    } catch (error: any) {
+      setCorrectionError(error.message || '정정 요청 목록을 불러오지 못했습니다.')
+    } finally {
+      setCorrectionLoading(false)
+    }
+  }
+
+  const handleCorrectionStatusFilterChange = (status: CorrectionStatusFilter) => {
+    setCorrectionStatusFilter(status)
+    fetchCorrectionRequests(status, correctionTargetFilter)
+  }
+
+  const handleCorrectionTargetFilterChange = (targetType: CorrectionTargetFilter) => {
+    setCorrectionTargetFilter(targetType)
+    fetchCorrectionRequests(correctionStatusFilter, targetType)
+  }
+
+  const updateCorrectionDraft = (id: number, patch: Partial<Pick<CorrectionRequest, 'status' | 'admin_note'>>) => {
+    setCorrectionRequests((requests) => requests.map((request) => (
+      request.id === id ? { ...request, ...patch } : request
+    )))
+  }
+
+  const saveCorrectionRequest = async (request: CorrectionRequest) => {
+    setSavingCorrectionId(request.id)
+    setCorrectionError('')
+
+    try {
+      const params = new URLSearchParams({ password })
+      const res = await fetch(`${getBaseURL()}/api/admin/correction-requests/${request.id}?${params.toString()}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: request.status,
+          admin_note: request.admin_note || null,
+        }),
+      })
+
+      if (!res.ok) throw new Error('정정 요청 저장에 실패했습니다.')
+
+      const updated = await res.json()
+      setCorrectionRequests((requests) => requests.map((item) => (
+        item.id === updated.id ? updated : item
+      )))
+      setMessage('정정 요청이 저장되었습니다.')
+    } catch (error: any) {
+      setCorrectionError(error.message || '정정 요청 저장에 실패했습니다.')
+    } finally {
+      setSavingCorrectionId(null)
+    }
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -113,15 +235,18 @@ export default function AdminPage() {
     const timeout = setTimeout(() => controller.abort(), 10000)
     try {
       const base = getBaseURL()
-      const [statsRes, apiStatsRes, userStatsRes] = await Promise.all([
+      const correctionParams = new URLSearchParams({ password, limit: '100' })
+      const [statsRes, apiStatsRes, userStatsRes, correctionRequestsRes] = await Promise.all([
         fetch(`${base}/api/admin/stats?password=${password}`, { signal: controller.signal }),
         fetch(`${base}/api/admin/api-stats?password=${password}`, { signal: controller.signal }),
         fetch(`${base}/api/admin/user-stats?password=${password}`, { signal: controller.signal }),
+        fetch(`${base}/api/admin/correction-requests?${correctionParams.toString()}`, { signal: controller.signal }),
       ])
       if (!statsRes.ok) throw new Error('인증 실패')
       setStats(await statsRes.json())
       setApiStats(await apiStatsRes.json())
       setUserStats(await userStatsRes.json())
+      setCorrectionRequests(correctionRequestsRes.ok ? await correctionRequestsRes.json() : [])
       setAuthenticated(true)
     } catch (err: any) {
       if (err.name === 'AbortError') {
@@ -287,7 +412,7 @@ export default function AdminPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
         <h1 style={{ fontSize: 28, fontWeight: 700, color: TEXT }}>관리자 대시보드</h1>
         <button
-          onClick={() => { setAuthenticated(false); setPassword(''); setStats(null) }}
+          onClick={() => { setAuthenticated(false); setPassword(''); setStats(null); setCorrectionRequests([]) }}
           style={{ padding: '8px 16px', background: 'rgba(255,255,255,0.08)', color: TEXT_MUTED, border: `1px solid ${BORDER}`, borderRadius: 8, cursor: 'pointer', fontSize: 13 }}
         >
           로그아웃
@@ -376,6 +501,20 @@ export default function AdminPage() {
               </table>
             </div>
           </div>
+
+          <CorrectionRequestsSection
+            requests={correctionRequests}
+            statusFilter={correctionStatusFilter}
+            targetFilter={correctionTargetFilter}
+            loading={correctionLoading}
+            error={correctionError}
+            savingId={savingCorrectionId}
+            onStatusFilterChange={handleCorrectionStatusFilterChange}
+            onTargetFilterChange={handleCorrectionTargetFilterChange}
+            onRefresh={() => fetchCorrectionRequests()}
+            onDraftChange={updateCorrectionDraft}
+            onSave={saveCorrectionRequest}
+          />
 
           {/* CSV 업로드 */}
           <div style={{ ...cardStyle, marginBottom: 24 }}>
@@ -768,6 +907,290 @@ export default function AdminPage() {
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+function formatAdminDate(value: string | null) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return date.toLocaleString('ko-KR')
+}
+
+function formatSnapshot(snapshot: CorrectionRequest['snapshot']) {
+  if (!snapshot) return '정보 없음'
+  if (typeof snapshot === 'string') return snapshot
+  return JSON.stringify(snapshot, null, 2)
+}
+
+function getCorrectionTargetLabel(targetType: CorrectionTargetType) {
+  return targetType === 'agent' ? '사람' : '사무소'
+}
+
+function CorrectionStatusBadge({ status }: { status: CorrectionStatus }) {
+  const colors = STATUS_COLORS[status]
+  return (
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      padding: '3px 9px',
+      borderRadius: 999,
+      fontSize: 12,
+      fontWeight: 700,
+      color: colors.color,
+      background: colors.bg,
+      border: `1px solid ${colors.border}`,
+      whiteSpace: 'nowrap',
+    }}>
+      {STATUS_LABELS[status]}
+    </span>
+  )
+}
+
+function CorrectionRequestsSection({
+  requests,
+  statusFilter,
+  targetFilter,
+  loading,
+  error,
+  savingId,
+  onStatusFilterChange,
+  onTargetFilterChange,
+  onRefresh,
+  onDraftChange,
+  onSave,
+}: {
+  requests: CorrectionRequest[]
+  statusFilter: CorrectionStatusFilter
+  targetFilter: CorrectionTargetFilter
+  loading: boolean
+  error: string
+  savingId: number | null
+  onStatusFilterChange: (status: CorrectionStatusFilter) => void
+  onTargetFilterChange: (targetType: CorrectionTargetFilter) => void
+  onRefresh: () => void
+  onDraftChange: (id: number, patch: Partial<Pick<CorrectionRequest, 'status' | 'admin_note'>>) => void
+  onSave: (request: CorrectionRequest) => void
+}) {
+  return (
+    <div style={{ ...cardStyle, marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: 16 }}>
+        <div>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 6 }}>정보 정정 요청</h2>
+          <p style={{ fontSize: 13, color: TEXT_MUTED }}>
+            접수된 정보 정정 요청을 확인하고 상태와 관리자 메모를 저장합니다.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={loading}
+          style={{
+            padding: '9px 14px',
+            background: loading ? 'rgba(255,255,255,0.08)' : 'rgba(49,130,246,0.14)',
+            color: loading ? TEXT_MUTED : ACCENT,
+            border: `1px solid ${loading ? BORDER : 'rgba(49,130,246,0.28)'}`,
+            borderRadius: 8,
+            fontWeight: 700,
+            fontSize: 13,
+            cursor: loading ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {loading ? '불러오는 중...' : '새로고침'}
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
+        <div>
+          <label style={{ display: 'block', fontSize: 12, color: TEXT_MUTED, marginBottom: 6 }}>상태 필터</label>
+          <select
+            value={statusFilter}
+            onChange={(event) => onStatusFilterChange(event.target.value as CorrectionStatusFilter)}
+            style={inputStyle}
+            disabled={loading}
+          >
+            <option value="">전체</option>
+            <option value="pending">대기</option>
+            <option value="reviewing">검토중</option>
+            <option value="resolved">완료</option>
+            <option value="rejected">반려</option>
+          </select>
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 12, color: TEXT_MUTED, marginBottom: 6 }}>대상 구분</label>
+          <select
+            value={targetFilter}
+            onChange={(event) => onTargetFilterChange(event.target.value as CorrectionTargetFilter)}
+            style={inputStyle}
+            disabled={loading}
+          >
+            <option value="">전체</option>
+            <option value="agent">사람</option>
+            <option value="office">사무소</option>
+          </select>
+        </div>
+      </div>
+
+      {error && (
+        <div style={{
+          padding: '12px 14px',
+          borderRadius: 8,
+          marginBottom: 16,
+          fontSize: 13,
+          color: '#f87171',
+          background: 'rgba(248,113,113,0.1)',
+          border: '1px solid rgba(248,113,113,0.2)',
+        }}>
+          {error}
+        </div>
+      )}
+
+      {requests.length === 0 ? (
+        <div style={{
+          padding: '28px 16px',
+          textAlign: 'center',
+          color: TEXT_MUTED,
+          border: `1px dashed ${BORDER}`,
+          borderRadius: 10,
+          background: 'rgba(255,255,255,0.02)',
+        }}>
+          표시할 정정 요청이 없습니다.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {requests.map((request) => (
+            <div
+              key={request.id}
+              style={{
+                border: `1px solid ${BORDER}`,
+                borderRadius: 12,
+                background: 'rgba(10,14,26,0.42)',
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 12,
+                flexWrap: 'wrap',
+                padding: '14px 16px',
+                borderBottom: `1px solid ${BORDER}`,
+                background: 'rgba(255,255,255,0.025)',
+              }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                    <CorrectionStatusBadge status={request.status} />
+                    <span style={{ fontSize: 12, color: TEXT_MUTED }}>{getCorrectionTargetLabel(request.target_type)}</span>
+                    <span style={{ fontSize: 12, color: TEXT_MUTED }}>#{request.id}</span>
+                  </div>
+                  <h3 style={{ fontSize: 16, color: TEXT, fontWeight: 700, marginBottom: 4, wordBreak: 'break-word' }}>
+                    {request.target_name || '정보 없음'}
+                  </h3>
+                  <p style={{ fontSize: 12, color: TEXT_MUTED }}>접수일: {formatAdminDate(request.created_at)}</p>
+                </div>
+                <a
+                  href={request.page_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    alignSelf: 'flex-start',
+                    color: ACCENT,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                    wordBreak: 'break-all',
+                  }}
+                >
+                  페이지 열기
+                </a>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 14, padding: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                  <InfoBlock label="페이지 URL" value={request.page_url} />
+                  <InfoBlock label="요청자 연락처" value={request.requester_contact || '정보 없음'} />
+                </div>
+
+                <InfoBlock label="정정 요청 내용" value={request.request_content} multiline />
+                <InfoBlock label="snapshot" value={formatSnapshot(request.snapshot)} multiline />
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(150px, 220px) minmax(0, 1fr)', gap: 12 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, color: TEXT_MUTED, marginBottom: 6 }}>상태 변경</label>
+                    <select
+                      value={request.status}
+                      onChange={(event) => onDraftChange(request.id, { status: event.target.value as CorrectionStatus })}
+                      style={inputStyle}
+                      disabled={savingId === request.id}
+                    >
+                      <option value="pending">대기</option>
+                      <option value="reviewing">검토중</option>
+                      <option value="resolved">완료</option>
+                      <option value="rejected">반려</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, color: TEXT_MUTED, marginBottom: 6 }}>관리자 메모</label>
+                    <textarea
+                      value={request.admin_note || ''}
+                      onChange={(event) => onDraftChange(request.id, { admin_note: event.target.value })}
+                      rows={3}
+                      maxLength={2000}
+                      style={{ ...inputStyle, resize: 'vertical', minHeight: 82 }}
+                      disabled={savingId === request.id}
+                      placeholder="처리 내용이나 확인 메모를 입력하세요."
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    onClick={() => onSave(request)}
+                    disabled={savingId === request.id}
+                    style={{
+                      minWidth: 110,
+                      padding: '10px 16px',
+                      background: savingId === request.id ? 'rgba(255,255,255,0.1)' : ACCENT,
+                      color: savingId === request.id ? TEXT_MUTED : '#fff',
+                      border: 'none',
+                      borderRadius: 8,
+                      fontWeight: 700,
+                      cursor: savingId === request.id ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {savingId === request.id ? '저장 중...' : '저장'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function InfoBlock({ label, value, multiline = false }: { label: string; value: string; multiline?: boolean }) {
+  return (
+    <div>
+      <p style={{ fontSize: 12, color: TEXT_MUTED, marginBottom: 6 }}>{label}</p>
+      <div style={{
+        padding: '10px 12px',
+        borderRadius: 8,
+        background: 'rgba(255,255,255,0.035)',
+        border: `1px solid ${BORDER}`,
+        color: TEXT,
+        fontSize: 13,
+        lineHeight: 1.6,
+        whiteSpace: multiline ? 'pre-wrap' : 'normal',
+        wordBreak: 'break-word',
+        maxHeight: multiline ? 140 : undefined,
+        overflowY: multiline ? 'auto' : undefined,
+      }}>
+        {value || '정보 없음'}
+      </div>
     </div>
   )
 }
