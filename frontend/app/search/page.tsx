@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { OfficeSummary, AgentSummary } from '@/types'
 import { extractLicenseYear } from '@/lib/licenseUtils'
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, Building2, User } from 'lucide-react'
 
 const SIDO_LIST = [
   '서울특별시', '경기도', '부산광역시', '대구광역시', '인천광역시',
@@ -32,6 +32,33 @@ const SIGUNGU_MAP: Record<string, string[]> = {
   '경상북도': ['경산시', '경주시', '고령군', '구미시', '군위군', '김천시', '문경시', '봉화군', '상주시', '성주군', '안동시', '영덕군', '영양군', '영주시', '영천시', '예천군', '울릉군', '울진군', '의성군', '이천시', '포항시'],
   '경상남도': ['거제시', '거창군', '고성군', '김해시', '남해군', '밀양시', '사천시', '산청군', '양산시', '의령군', '진주시', '창녕군', '창원시', '통영시', '하동군', '함안군', '함양군', '합천군'],
   '제주특별자치도': ['서귀포시', '제주시'],
+}
+
+const EMPTY_VALUE = '정보 없음'
+
+function displayValue(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === '' || value === 'nan') {
+    return EMPTY_VALUE
+  }
+
+  return String(value)
+}
+
+function displayRegion(sido?: string | null, sigungu?: string | null) {
+  return [sido, sigungu].filter(Boolean).join(' ') || EMPTY_VALUE
+}
+
+function displayAgentRole(agent: AgentSummary) {
+  if (agent.role === '대표') return '대표'
+  if (agent.role) return agent.role
+  if (agent.agent_type === '중개보조원') return '중개보조원'
+  if (agent.agent_type === '공인중개사') return '소속공인중개사'
+
+  return EMPTY_VALUE
+}
+
+function displayCount(value: number | null | undefined) {
+  return typeof value === 'number' ? `${value}명` : EMPTY_VALUE
 }
 
 function SearchContent() {
@@ -223,9 +250,16 @@ function SearchContent() {
         background: '#13192B',
         borderColor: 'rgba(255, 255, 255, 0.08)'
       }}>
-        <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.875rem' }}>
-          검색결과: <span className="font-semibold text-white">{q}</span> <span style={{ color: '#3182F6' }}>(사무소 {offices.length}개, 사람 {agents.length}명)</span>
-        </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <p className="font-semibold text-white">
+            {q ? `"${q}" 검색 결과` : '검색 결과'}
+          </p>
+          <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.875rem' }}>
+            <span style={{ color: '#93C5FD' }}>사무소 {offices.length}개</span>
+            <span className="mx-2" style={{ color: 'rgba(255, 255, 255, 0.25)' }}>/</span>
+            <span style={{ color: '#93C5FD' }}>사람 {agents.length}명</span>
+          </p>
+        </div>
       </div>
 
       {error && (
@@ -245,7 +279,8 @@ function SearchContent() {
           background: 'rgba(255, 255, 255, 0.05)',
           borderColor: 'rgba(255, 255, 255, 0.08)'
         }}>
-          <p style={{ color: 'rgba(255, 255, 255, 0.5)' }}>검색 결과가 없습니다.</p>
+          <p className="font-semibold text-white mb-2">검색 결과가 없습니다.</p>
+          <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.875rem' }}>검색어를 바꾸거나 지역 필터를 조정해보세요.</p>
         </div>
       ) : (
         <>
@@ -269,7 +304,8 @@ function SearchContent() {
                     background: 'rgba(255, 255, 255, 0.05)',
                     borderColor: 'rgba(255, 255, 255, 0.08)'
                   }}>
-                    <p style={{ color: 'rgba(255, 255, 255, 0.5)' }}>검색 결과가 없습니다.</p>
+                    <p className="font-semibold text-white mb-2">사무소 검색 결과가 없습니다.</p>
+                    <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.875rem' }}>검색어 또는 지역 필터를 다시 확인해보세요.</p>
                   </div>
                 )
               ) : (
@@ -278,44 +314,56 @@ function SearchContent() {
                     <Link
                       key={office.registration_number}
                       href={`/office/${encodeURIComponent(office.registration_number)}`}
+                      className="block rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-[#0A0E1A]"
                     >
-                      <div className="result-card">
-                        <div className="flex justify-between items-start gap-4">
+                      <div className="result-card group">
+                        <div className="flex items-start gap-3 mb-4">
+                          <div className="p-2 rounded-lg flex-shrink-0" style={{ background: 'rgba(49, 130, 246, 0.1)', color: '#93C5FD' }}>
+                            <Building2 size={20} />
+                          </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between mb-3 gap-2 flex-wrap">
-                              <h3 className="font-bold text-base sm:text-lg text-white min-w-0">
-                                {office.office_name}
+                            <div className="flex items-start justify-between gap-3 flex-wrap">
+                              <h3 className="font-bold text-base sm:text-lg text-white min-w-0 break-words">
+                                {displayValue(office.office_name)}
                               </h3>
                               <span className="px-3 py-1 text-xs font-semibold rounded-full flex-shrink-0 text-white" style={{
-                                background: office.status === '영업중' ? '#3182F6' : '#666'
+                                background: office.status === '영업중' ? '#3182F6' : 'rgba(255, 255, 255, 0.18)'
                               }}>
-                                {office.status}
+                                {displayValue(office.status)}
                               </span>
                             </div>
-                            <div style={{ color: 'rgba(255, 255, 255, 0.6)' }} className="space-y-1 mb-3 text-sm">
-                              <p>등록번호: {office.registration_number}</p>
-                              <p>대표: {office.representative_name || '-'}</p>
-                              <p>주소: {office.address || '-'}</p>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {office.staff_count !== null && (
-                                <span className="px-3 py-1 text-xs rounded" style={{
-                                  background: 'rgba(49, 130, 246, 0.1)',
-                                  color: '#93C5FD'
-                                }}>
-                                  직원수: {office.staff_count}명
-                                </span>
-                              )}
-                              {office.representative_experience !== null && (
-                                <span className="px-3 py-1 text-xs rounded" style={{
-                                  background: 'rgba(49, 130, 246, 0.1)',
-                                  color: '#93C5FD'
-                                }}>
-                                  대표 경력: {office.representative_experience}년
-                                </span>
-                              )}
-                            </div>
+                            <p className="text-xs mt-1" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                              등록번호 {displayValue(office.registration_number)}
+                            </p>
                           </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
+                          {[
+                            ['대표자', displayValue(office.representative_name)],
+                            ['주소', displayValue(office.address)],
+                            ['총 직원 수', displayCount(office.staff_count)],
+                            ['공인중개사 수', EMPTY_VALUE],
+                            ['중개보조원 수', EMPTY_VALUE],
+                          ].map(([label, value]) => (
+                            <div key={label} className={label === '주소' ? 'sm:col-span-2' : ''}>
+                              <p className="text-xs mb-1" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>{label}</p>
+                              <p className="font-medium text-white break-words">{value}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3 pt-3" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                          <p className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                            클릭하면 사무소 상세 정보로 이동합니다.
+                          </p>
+                          <span className="inline-flex items-center justify-center min-h-[40px] px-3 py-2 rounded-lg text-sm font-semibold transition group-hover:opacity-90" style={{
+                            background: 'rgba(49, 130, 246, 0.12)',
+                            color: '#93C5FD',
+                            border: '1px solid rgba(49, 130, 246, 0.2)'
+                          }}>
+                            사무소 상세보기 →
+                          </span>
                         </div>
                       </div>
                     </Link>
@@ -333,7 +381,8 @@ function SearchContent() {
                     background: 'rgba(255, 255, 255, 0.05)',
                     borderColor: 'rgba(255, 255, 255, 0.08)'
                   }}>
-                    <p style={{ color: 'rgba(255, 255, 255, 0.5)' }}>검색 결과가 없습니다.</p>
+                    <p className="font-semibold text-white mb-2">사람 검색 결과가 없습니다.</p>
+                    <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.875rem' }}>이름이나 지역 조건을 다시 확인해보세요.</p>
                   </div>
                 )
               ) : (
@@ -341,32 +390,59 @@ function SearchContent() {
                   {filteredAgents.map((agent) => {
                     const { year, career } = extractLicenseYear(agent.license_number || null, agent.license_date || null)
                     return (
-                    <Link key={agent.id} href={`/agent/${agent.id}`}>
-                      <div className="result-card">
-                        <div className="flex justify-between items-start gap-2 flex-wrap">
+                    <Link
+                      key={agent.id}
+                      href={`/agent/${agent.id}`}
+                      className="block rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-[#0A0E1A]"
+                    >
+                      <div className="result-card group">
+                        <div className="flex items-start gap-3 mb-4">
+                          <div className="p-2 rounded-lg flex-shrink-0" style={{ background: 'rgba(49, 130, 246, 0.1)', color: '#93C5FD' }}>
+                            <User size={20} />
+                          </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2 mb-3">
-                              <h3 className="font-bold text-base sm:text-lg text-white min-w-0">
-                                {agent.name}
+                            <div className="flex items-start justify-between gap-3 flex-wrap">
+                              <h3 className="font-bold text-base sm:text-lg text-white min-w-0 break-words">
+                                {displayValue(agent.name)}
                               </h3>
-                              <span className="px-3 py-1 text-xs font-semibold rounded-full text-white" style={{
-                                background: '#3182F6'
+                              <span className="px-3 py-1 text-xs font-semibold rounded-full flex-shrink-0 text-white" style={{
+                                background: agent.agent_type === '공인중개사' ? '#3182F6' : 'rgba(255, 255, 255, 0.18)'
                               }}>
-                                {agent.role === '대표' ? '대표자' : agent.role ? '소속직원' : '-'}
+                                {displayValue(agent.agent_type)}
                               </span>
                             </div>
-                            <div style={{ color: 'rgba(255, 255, 255, 0.6)' }} className="space-y-1 text-sm">
-                              <p>구분: {agent.agent_type || '-'}</p>
-                              <p>사무소: {agent.office_name || '-'}</p>
-                              <p>주소: {agent.address || '-'}</p>
-                              <p>자격취득: {year ? `${year}년` : '자격증 미보유'}</p>
-                              <p>경력: {career === '-' ? '확인 불가' : career}</p>
-                            </div>
+                            <p className="text-xs mt-1" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                              {displayAgentRole(agent)}
+                            </p>
                           </div>
-                          <span className="px-3 py-1 text-xs font-semibold rounded-full flex-shrink-0 text-white" style={{
-                            background: agent.agent_type === '공인중개사' ? '#3182F6' : '#666'
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
+                          {[
+                            ['직위', displayAgentRole(agent)],
+                            ['구분', displayValue(agent.agent_type)],
+                            ['소속 사무소명', displayValue(agent.office_name)],
+                            ['지역', displayRegion(agent.sido, agent.sigungu)],
+                            ['자격취득년도', year ? `${year}년` : EMPTY_VALUE],
+                            ['경력', career === '-' ? EMPTY_VALUE : career],
+                          ].map(([label, value]) => (
+                            <div key={label}>
+                              <p className="text-xs mb-1" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>{label}</p>
+                              <p className="font-medium text-white break-words">{value}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3 pt-3" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                          <p className="text-xs" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                            클릭하면 사람 상세 정보로 이동합니다.
+                          </p>
+                          <span className="inline-flex items-center justify-center min-h-[40px] px-3 py-2 rounded-lg text-sm font-semibold transition group-hover:opacity-90" style={{
+                            background: 'rgba(49, 130, 246, 0.12)',
+                            color: '#93C5FD',
+                            border: '1px solid rgba(49, 130, 246, 0.2)'
                           }}>
-                            {agent.agent_type}
+                            상세정보 보기 →
                           </span>
                         </div>
                       </div>

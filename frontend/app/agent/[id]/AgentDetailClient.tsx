@@ -4,9 +4,14 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { AgentDetail } from '@/types'
 import { extractLicenseYear } from '@/lib/licenseUtils'
-import { ArrowLeft, CheckCircle, AlertCircle, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, CheckCircle, AlertCircle, ShieldCheck, Mail } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const CONTACT_EMAIL = 'realsearchvalue@gmail.com'
+
+function getSiteUrl() {
+  return (process.env.NEXT_PUBLIC_SITE_URL || 'https://realsearch.kr').replace(/\/$/, '')
+}
 
 function formatDate(value: string | null | undefined) {
   if (!value) return '정보 없음'
@@ -43,6 +48,24 @@ function getAgentPositionLabel(agent: AgentDetail) {
   if (agent.agent_type?.includes('공인중개사')) return '소속공인중개사'
 
   return agent.role || agent.agent_type || '정보 없음'
+}
+
+function createCorrectionMailto(agent: AgentDetail, id: string, officeName: string, region: string) {
+  const subject = `[리얼서치 정보 정정 요청] ${getValue(agent.name)}`
+  const body = [
+    `페이지 URL: ${getSiteUrl()}/agent/${encodeURIComponent(id)}`,
+    `이름: ${getValue(agent.name)}`,
+    `직위: ${getAgentPositionLabel(agent)}`,
+    `구분: ${getValue(agent.agent_type)}`,
+    `소속 사무소: ${getValue(officeName)}`,
+    `지역: ${getValue(region)}`,
+    '',
+    '정정 요청 내용:',
+    '',
+    '요청자 연락처:',
+  ].join('\n')
+
+  return `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
 }
 
 export default function AgentDetailClient({ id }: { id: string }) {
@@ -91,6 +114,7 @@ export default function AgentDetailClient({ id }: { id: string }) {
   const { year, career, isInvalid, errorMessage } = extractLicenseYear(agent.license_number, agent.license_date)
   const region = [agent.sido, agent.sigungu].filter(Boolean).join(' ') || '정보 없음'
   const officeName = agent.office_name || agent.office?.office_name || '정보 없음'
+  const correctionMailto = createCorrectionMailto(agent, id, officeName, region)
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -147,6 +171,24 @@ export default function AgentDetailClient({ id }: { id: string }) {
         <p className="mt-4 text-xs leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.56)' }}>
           계약 전 관할 시·군·구청 또는 공식 조회를 통해 최종 확인하세요.
         </p>
+
+        <div className="mt-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+          <p className="text-xs leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+            표시된 정보가 실제와 다르다면 정정 요청을 보내주세요.
+          </p>
+          <a
+            href={correctionMailto}
+            className="inline-flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 rounded-lg text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-[#13192B] hover:opacity-90"
+            style={{
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(255, 255, 255, 0.14)',
+              color: 'rgba(255, 255, 255, 0.88)',
+            }}
+          >
+            <Mail size={16} />
+            정보 정정 요청
+          </a>
+        </div>
       </div>
 
       {/* 경고/확인 메시지 */}
