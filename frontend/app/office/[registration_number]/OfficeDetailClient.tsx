@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { OfficeDetail } from '@/types'
 import api from '@/lib/api'
 import { extractLicenseYear } from '@/lib/licenseUtils'
-import { ArrowLeft, Users, History, ShieldCheck, Mail } from 'lucide-react'
+import CorrectionRequestModal from '@/components/CorrectionRequestModal'
+import { ArrowLeft, Users, History, ShieldCheck, MessageSquare } from 'lucide-react'
 
 interface ChangeEvent {
   type: '신규개업' | '폐업' | '정보변경'
@@ -28,7 +29,6 @@ const FIELD_LABELS: Record<string, string> = {
   sigungu: '시군구',
 }
 
-const CONTACT_EMAIL = 'realsearchvalue@gmail.com'
 
 function getSiteUrl() {
   return (process.env.NEXT_PUBLIC_SITE_URL || 'https://realsearch.kr').replace(/\/$/, '')
@@ -67,24 +67,17 @@ function getOfficeSummaryMessage(office: OfficeDetail) {
   return '부동산중개사무소 정보가 확인됩니다.'
 }
 
-function createCorrectionMailto(office: OfficeDetail, registrationNumber: string) {
-  const subject = `[리얼서치 정보 정정 요청] ${getValue(office.office_name)}`
-  const body = [
-    `페이지 URL: ${getSiteUrl()}/office/${encodeURIComponent(registrationNumber)}`,
-    `사무소명: ${getValue(office.office_name)}`,
-    `등록번호: ${getValue(office.registration_number)}`,
+function createCorrectionSnapshot(office: OfficeDetail, registrationNumber: string, staffCount: number, licensedAgentCount: number, assistantCount: number) {
+  return [
     `대표자: ${getValue(office.representative_name)}`,
+    `등록번호: ${getValue(office.registration_number || registrationNumber)}`,
     `주소: ${getValue(office.address)}`,
     `영업상태: ${getValue(office.status)}`,
-    '',
-    '정정 요청 내용:',
-    '',
-    '요청자 연락처:',
-  ].join('\n')
-
-  return `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    `총 직원: ${staffCount}명`,
+    `공인중개사: ${licensedAgentCount}명`,
+    `중개보조원: ${assistantCount}명`,
+  ].join(', ')
 }
-
 export default function OfficeDetailClient({
   registrationNumber,
 }: {
@@ -94,6 +87,7 @@ export default function OfficeDetailClient({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [changeHistory, setChangeHistory] = useState<OfficeChangeHistory[]>([])
+  const [isCorrectionModalOpen, setIsCorrectionModalOpen] = useState(false)
 
   useEffect(() => {
     const fetchOffice = async () => {
@@ -153,7 +147,7 @@ export default function OfficeDetailClient({
   const staff = office.staff || []
   const licensedAgentCount = staff.filter((agent) => agent.agent_type?.includes('공인중개사')).length
   const assistantCount = staff.filter((agent) => agent.agent_type?.includes('중개보조원')).length
-  const correctionMailto = createCorrectionMailto(office, registrationNumber)
+  const correctionSnapshot = createCorrectionSnapshot(office, registrationNumber, staff.length, licensedAgentCount, assistantCount)
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -219,8 +213,9 @@ export default function OfficeDetailClient({
           <p className="text-xs leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
             표시된 정보가 실제와 다르다면 정정 요청을 보내주세요.
           </p>
-          <a
-            href={correctionMailto}
+          <button
+            type="button"
+            onClick={() => setIsCorrectionModalOpen(true)}
             className="inline-flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 rounded-lg text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-[#13192B] hover:opacity-90"
             style={{
               background: 'rgba(255, 255, 255, 0.08)',
@@ -228,11 +223,23 @@ export default function OfficeDetailClient({
               color: 'rgba(255, 255, 255, 0.88)',
             }}
           >
-            <Mail size={16} />
+            <MessageSquare size={16} />
             정보 정정 요청
-          </a>
+          </button>
         </div>
       </div>
+
+      <CorrectionRequestModal
+        isOpen={isCorrectionModalOpen}
+        onClose={() => setIsCorrectionModalOpen(false)}
+        payload={{
+          target_type: 'office',
+          target_id: registrationNumber,
+          target_name: getValue(office.office_name),
+          page_url: `${getSiteUrl()}/office/${encodeURIComponent(registrationNumber)}`,
+          snapshot: correctionSnapshot,
+        }}
+      />
 
       {/* 기본 정보 카드 */}
       <div className="rounded-xl p-6 mb-8 border" style={{
