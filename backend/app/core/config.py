@@ -1,9 +1,16 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
 
 class Settings(BaseSettings):
     """애플리케이션 설정"""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
     # 앱 기본 설정
     APP_NAME: str = "RealSearch - 부동산중개업 정보 조회"
@@ -21,6 +28,7 @@ class Settings(BaseSettings):
 
     # CORS 설정
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001,http://localhost:8000"
+    ADMIN_PASSWORD: str | None = None
 
     @property
     def cors_origins_list(self) -> list:
@@ -33,11 +41,6 @@ class Settings(BaseSettings):
     # CSV 파일 저장 경로
     CSV_DATA_DIR: str = "./data/csv"
     SAMPLE_DATA_DIR: str = "./data/sample"
-
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-
 
 @lru_cache()
 def get_settings():
