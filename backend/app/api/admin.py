@@ -10,20 +10,22 @@ from app.db.models import OfficeCurrent, AgentCurrent, DataSyncLog, DailySyncRes
 from app.db import schemas
 import csv
 import io
+import os
 import re
+import secrets
 
 router = APIRouter(
     prefix="/api/admin",
     tags=["admin"],
 )
 
-ADMIN_PASSWORD = "admin123"
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 CHUNK = 5000
 DELETE_SAFETY_THRESHOLD = 0.20  # 20% 이상 삭제 시 경고
 
 
 def verify_admin(password: str):
-    if password != ADMIN_PASSWORD:
+    if not ADMIN_PASSWORD or not secrets.compare_digest(password, ADMIN_PASSWORD):
         raise HTTPException(status_code=401, detail="인증 실패")
 
 
