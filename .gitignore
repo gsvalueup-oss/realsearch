@@ -31,6 +31,9 @@ env/
 # Virtual Environment
 .env
 .env.local
+.env.production
+.env.*
+!.env.example
 .env.*.local
 
 # IDE
@@ -95,4 +98,5 @@ htmlcov/
 *.bak
 *.backup
 
-.vercel
+.vercel/
+**/.vercel/
