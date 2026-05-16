@@ -255,28 +255,22 @@ export default function OfficeDetailClient({
             <p className="font-semibold text-white mb-3">
               {office.representative_name || '-'}
             </p>
-            {representative ? (() => {
-              const { year, career } = extractLicenseYear(representative.license_number || null, representative.license_date || null)
+            {(() => {
+              const licenseNumber = representative?.license_number || office.representative_license_number || null
+              const licenseDate = representative?.license_date || office.representative_license_date || null
+              if (!office.representative_name) return null
+              const { year, career } = extractLicenseYear(licenseNumber, licenseDate)
               return (
                 <div className="space-y-2">
                   <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.875rem' }}>
-                    자격취득년도: <span style={{ color: year ? 'white' : '#FF6B6B' }} className="font-semibold">{year || '자격증 미보유'}</span>
+                    자격취득년도: <span style={{ color: year ? 'white' : 'rgba(255, 255, 255, 0.4)' }} className="font-semibold">{year || '정보 없음'}</span>
                   </p>
                   <p style={{ color: career === '-' ? 'rgba(255, 255, 255, 0.4)' : '#3182F6', fontSize: '0.875rem', fontWeight: '600' }}>
                     대표자 경력: {career === '-' ? '확인 불가' : career}
                   </p>
                 </div>
               )
-            })() : office.representative_name ? (
-              <div className="space-y-2">
-                <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.875rem' }}>
-                  자격취득년도: <span style={{ color: '#FF6B6B' }} className="font-semibold">자격증 미보유</span>
-                </p>
-                <p style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.875rem', fontWeight: '600' }}>
-                  대표자 경력: 확인 불가
-                </p>
-              </div>
-            ) : null}
+            })()}
           </div>
           <div>
             <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>

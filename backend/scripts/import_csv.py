@@ -76,6 +76,7 @@ def import_offices_from_csv(csv_path: str, conn, batch_size: int = 5000) -> int:
     ON CONFLICT (registration_number) DO UPDATE SET
         office_name = EXCLUDED.office_name,
         representative_name = EXCLUDED.representative_name,
+        source_updated_at = EXCLUDED.source_updated_at,
         updated_at = NOW()
     """
 

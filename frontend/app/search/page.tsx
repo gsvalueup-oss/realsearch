@@ -343,8 +343,8 @@ function SearchContent() {
                             ['대표자', displayValue(office.representative_name)],
                             ['주소', displayValue(office.address)],
                             ['총 직원 수', displayCount(office.staff_count)],
-                            ['공인중개사 수', EMPTY_VALUE],
-                            ['중개보조원 수', EMPTY_VALUE],
+                            ['공인중개사 수', displayCount(office.licensed_agent_count)],
+                            ['중개보조원 수', displayCount(office.assistant_count)],
                           ].map(([label, value]) => (
                             <div key={label} className={label === '주소' ? 'sm:col-span-2' : ''}>
                               <p className="text-xs mb-1" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>{label}</p>

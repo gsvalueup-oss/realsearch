@@ -10,6 +10,8 @@ export interface OfficeSummary {
   registered_date: string | null
   phone_number: string | null
   staff_count?: number | null
+  licensed_agent_count?: number | null
+  assistant_count?: number | null
   representative_experience?: number | null
 }
 
@@ -26,6 +28,8 @@ export interface OfficeDetail extends OfficeSummary {
   created_at: string | null
   updated_at: string | null
   staff: AgentSummary[]
+  representative_license_number?: string | null
+  representative_license_date?: string | null
 }
 
 export interface AgentSummary {

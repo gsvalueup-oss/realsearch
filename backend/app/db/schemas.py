@@ -57,6 +57,8 @@ class OfficeDetail(OfficeSummary):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     staff: List[AgentSummary] = []
+    representative_license_number: Optional[str] = None
+    representative_license_date: Optional[date] = None
 
 
 class AgentDetail(BaseModel):

@@ -95,6 +95,16 @@ async def search(
                 AgentCurrent.office_registration_number == office.registration_number
             ).scalar()
 
+            licensed_agent_count = db.query(func.count(AgentCurrent.id)).filter(
+                AgentCurrent.office_registration_number == office.registration_number,
+                AgentCurrent.agent_type == '공인중개사'
+            ).scalar()
+
+            assistant_count = db.query(func.count(AgentCurrent.id)).filter(
+                AgentCurrent.office_registration_number == office.registration_number,
+                AgentCurrent.agent_type == '중개보조원'
+            ).scalar()
+
             # 대표자 경력 계산 (1970-01-01 또는 1985년 이전 데이터는 제외)
             representative_experience = None
             if office.representative_name:
@@ -127,6 +137,8 @@ async def search(
                 "status": office.status,
                 "type": "office",
                 "staff_count": staff_count,
+                "licensed_agent_count": licensed_agent_count,
+                "assistant_count": assistant_count,
                 "representative_experience": representative_experience,
             })
 

@@ -84,6 +84,20 @@ async def get_office(
     ).all()
 
     office.staff = agents
+
+    # 대표자가 staff에 없는 경우(법인 등) 이름으로 전체 agent 검색
+    rep_in_staff = any(a.name == office.representative_name for a in agents)
+    if not rep_in_staff and office.representative_name:
+        rep_agent = db.query(AgentCurrent).filter(
+            AgentCurrent.name == office.representative_name,
+            AgentCurrent.agent_type == '공인중개사'
+        ).order_by(AgentCurrent.license_date.asc()).first()
+        office.representative_license_number = rep_agent.license_number if rep_agent else None
+        office.representative_license_date = rep_agent.license_date if rep_agent else None
+    else:
+        office.representative_license_number = None
+        office.representative_license_date = None
+
     return office
 
 
