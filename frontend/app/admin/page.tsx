@@ -39,9 +39,9 @@ export default function AdminPage() {
       storeAdminPassword(adminPassword)
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        setMessage('??? ??? ? ????. (10? ??)')
+        setMessage('서버에 연결할 수 없습니다 (10초 초과)')
       } else {
-        setMessage('????? ???? ????.')
+        setMessage('비밀번호가 올바르지 않습니다.')
       }
       setPassword('')
       setAuthenticated(false)
@@ -63,7 +63,7 @@ export default function AdminPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!password) {
-      setMessage('????? ?????.')
+      setMessage('비밀번호를 입력하세요.')
       return
     }
     await loadDashboard(password)
@@ -109,9 +109,9 @@ export default function AdminPage() {
               transition: 'border-color 0.15s ease, background 0.15s ease',
             }}
           >
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 6 }}>?? ?? ?? ??</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: TEXT, marginBottom: 6 }}>정보 정정 요청</h2>
             <p style={{ fontSize: 13, color: TEXT_MUTED, lineHeight: 1.6 }}>
-              ???? ??? ?? ?? ??? ???? ?? ??? ??? ??? ?????.
+              접수된 정보 정정 요청 확인, 처리 상태 변경, 관리자 메모 관리는 별도 페이지에서 처리합니다.
             </p>
           </Link>
 
